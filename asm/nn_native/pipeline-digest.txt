@@ -1,0 +1,50 @@
+flydsl compilation stages -- op-count digest
+==============================================================================
+
+Kernel: grouped NN (dgrad), native pipeline, b_lds_transpose=1
+Shape:  qwen3-235b-a22b fc1, avg_m=2048, tile 256x256x128, mw2/nw2/nb2
+
+Only 21_final_isa.s and 20_llvm_ir.ll are checked in. This table is what the
+20 intermediate MLIR stages would have told you; see asm/README.md for how to
+regenerate them in full.
+
+stage                                                  bytes   tr16   wmma  ds_b128    tdm  note
+------------------------------------------------------------------------------------------------
+00_origin.mlir                                        802733    128    513        0     45  
+01_fly_rewrite_func_signature.mlir                    802733    128    513        0     45  identical to 00_origin.mlir
+02_fly_canonicalize.mlir                              639098    128    513        0     45  
+03_fly_layout_lowering.mlir                           584371    128    513        0     45  
+04_fly_int_swizzle_simplify.mlir                      584371    128    513        0     45  identical to 03_fly_layout_lowering.mlir
+05_canonicalize.mlir                                  584425    128    513        0     45  
+06_fly_convert_atom_call_to_ssa_form.mlir             758851    128    513        0     45  
+07_fly_promote_regmem_to_vectorssa.mlir               651983    128    513        0     45  
+08_convert_fly_to_rocdl.mlir                          654327    128    512        0      0  
+09_canonicalize.mlir                                  384229    128    512        0      0  
+10_convert_scf_to_cf_cse_convert_gpu_to_rocdl.mlir    321372    128    512        0      0  
+11_rocdl_attach_target.mlir                           321372    128    512        0      0  identical to 10_convert_scf_to_cf_cse_convert_gpu_to_rocdl.mlir
+12_convert_scf_to_cf.mlir                             321372    128    512        0      0  identical to 10_convert_scf_to_cf_cse_convert_gpu_to_rocdl.mlir
+13_convert_cf_to_llvm.mlir                            321372    128    512        0      0  identical to 10_convert_scf_to_cf_cse_convert_gpu_to_rocdl.mlir
+14_gpu_to_llvm.mlir                                   303313    128    512        0      0  
+15_convert_vector_to_llvm.mlir                        303313    128    512        0      0  identical to 14_gpu_to_llvm.mlir
+16_convert_arith_to_llvm.mlir                         303313    128    512        0      0  identical to 14_gpu_to_llvm.mlir
+17_convert_func_to_llvm.mlir                          303313    128    512        0      0  identical to 14_gpu_to_llvm.mlir
+18_reconcile_unrealized_casts.mlir                    303313    128    512        0      0  identical to 14_gpu_to_llvm.mlir
+19_gpu_module_to_binary.mlir                           54883      0      0        0      0  
+20_llvm_ir.ll                                         213189    129    513        0      0  
+21_final_isa.s                                        145113    128    512      128      4  
+
+Reading this table
+------------------
+
+* 128 transpose reads and 512 WMMA survive every stage from 00_origin to the
+  final ISA. Nothing is folded away, duplicated or lost in lowering -- which is
+  the main thing you want an IR dump to tell you.
+* The final ISA shows 128 ds_read_b128 AND 128 transposing reads: 256 LDS reads
+  total, exactly matching the NT path's 256. The native NN pipeline swaps half
+  the plain reads for transposing ones rather than adding to them.
+* tr16 counts 0 at stage 19 because that stage is the serialised binary blob,
+  not readable IR.
+* 20_llvm_ir.ll shows 129/513 rather than 128/512: one extra match each from a
+  declaration line rather than a call site.
+* Many stages are byte-identical to their predecessor (noted above). Of 23
+  files, only 13 are distinct -- part of why keeping all of them was poor value.
