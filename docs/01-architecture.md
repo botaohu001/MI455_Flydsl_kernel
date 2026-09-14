@@ -1,197 +1,176 @@
-# 1. gfx1250 vs gfx950: why the ideas port and the code does not
+# 1. gfx1250 vs gfx950：为什么思路可搬、代码不可搬
 
-This document is the answer to "we have a working grouped GEMM on MI355X, how
-much of it can we reuse on MI455X?"
+这篇回答的是："我们在 MI355X 上有一个能跑的 grouped GEMM，多少能在 MI455X 上
+复用？"
 
-The short answer: **the grouped control logic, and nothing below it.** Every
-primitive the gfx950 tile body is built from has a gfx1250 counterpart that is
-differently shaped, not differently named. A line-by-line port is not possible;
-a concept-by-concept port took about 2300 lines.
+简短答案：**grouped 控制逻辑，以及仅此而已。** gfx950 的 tile body 所依赖的每
+一个 primitive，在 gfx1250 上都有一个**形状不同**（而不是名字不同）的对应物。
+逐行移植不可能；逐概念移植花了约 2300 行。
 
-Evidence markers used throughout this repository:
+本仓库全文使用的证据标注：
 
-| marker | meaning |
+| 标注 | 含义 |
 |---|---|
-| **[MEASURED]** | run on an MI455X (gfx1250) in this project |
-| **[ISA]** | stated in the published CDNA5 ISA reference (see `NOTICE` for the link) |
-| **[LLVM]** | `llvm-mc -mcpu=gfx1250` accepts or rejects the encoding |
-| **[FLYDSL]** | present in the flydsl Python surface (version given) |
-| **[INFERRED]** | reasoning from the above; **not** measured |
+| **[实测]** | 在本项目中于 MI455X (gfx1250) 上真跑出来的 |
+| **[ISA]** | 公开发布的 CDNA5 ISA 手册里写了（链接见 `NOTICE`） |
+| **[LLVM]** | `llvm-mc -mcpu=gfx1250` 能编码或拒绝 |
+| **[FLYDSL]** | 存在于 flydsl 的 Python 接口中，注明版本 |
+| **[推断]** | 由以上推理得出；**没有**实测 |
 
 ---
 
-## 1.1 The item-by-item table
+## 1.1 逐项对照表
 
-| concern | gfx950 / MI355X | gfx1250 / MI455X | portable? |
+| 关注点 | gfx950 / MI355X | gfx1250 / MI455X | 可搬？ |
 |---|---|---|---|
-| wave size | 64 | **32** | no — every lane-indexing expression changes |
-| matrix engine | MFMA `Mfma16x16x32` | **WMMA** `rocdl.WMMA(16,16,32)` | no — different instruction family |
-| accumulator per lane | `m*n // 64` = 4 × f32 | **8 × f32** (`m*n // 32`) | no — follows from wave32 |
-| accumulator storage | AGPR (`agpr_alloc`) | **VGPR only** | no — gfx12 has no AGPRs at all |
-| global → LDS | `buffer_load` + SRD | **TDM** engine, async whole-tile DMA | no — different engine |
-| address generation | hand-computed lane swizzle | **TDM computes its own addresses** | no — the swizzle code becomes dead |
-| ragged / OOB clamp | SRD `num_records` | **TDM `tensor_extents`** (two axes, asymmetric) | no — and the asymmetry is a trap, §1.4 |
-| LDS → register, plain | `ds_read_b128` | `ds_read_b128` | **yes** |
-| LDS → register, transposing | `ds_read_b64_tr_b16` | **`ds_load_tr16_b128`** | no — **different lane semantics**, §1.3 |
-| barrier / fence | `s_barrier` + `lgkmcnt` | **`tdm_ops.tensor_wait` + `gpu.barrier`** | no |
-| LDS per CU | 160 KB | **320 KB** | changes every tile budget |
-| scheduling controls | `make_value_attrs(waves_per_eu, agpr_alloc, …)` | `compile_hints["llvm_options"]` | no — `agpr_alloc` is meaningless |
+| wave 宽度 | 64 | **32** | 否 —— 每一处 lane 索引表达式都要改 |
+| 矩阵引擎 | MFMA `Mfma16x16x32` | **WMMA** `rocdl.WMMA(16,16,32)` | 否 —— 不同指令族 |
+| 每 lane 累加器 | `m*n // 64` = 4 × f32 | **8 × f32**（`m*n // 32`） | 否 —— 由 wave32 决定 |
+| 累加器存放 | AGPR（`agpr_alloc`） | **只有 VGPR** | 否 —— gfx12 根本没有 AGPR |
+| global → LDS | `buffer_load` + SRD | **TDM** 引擎，整 tile 异步 DMA | 否 —— 不同引擎 |
+| 地址生成 | 手算 lane swizzle | **TDM 自己算地址** | 否 —— swizzle 代码直接变成死代码 |
+| ragged / OOB clamp | SRD `num_records` | **TDM `tensor_extents`**（两个轴，不对称） | 否 —— 而且那个不对称是个陷阱，见 §1.4 |
+| LDS → 寄存器，普通读 | `ds_read_b128` | `ds_read_b128` | **是** |
+| LDS → 寄存器，转置读 | `ds_read_b64_tr_b16` | **`ds_load_tr16_b128`** | 否 —— **lane 语义不同**，见 §1.3 |
+| barrier / fence | `s_barrier` + `lgkmcnt` | **`tdm_ops.tensor_wait` + `gpu.barrier`** | 否 |
+| 每 CU 的 LDS | 160 KB | **320 KB** | 所有 tile 预算都要重算 |
+| 调度控制 | `make_value_attrs(waves_per_eu, agpr_alloc, …)` | `compile_hints["llvm_options"]` | 否 —— `agpr_alloc` 已无意义 |
 
-What survives: the M-tile table, the per-expert rebasing, the
-tile → (expert, block_m, block_n) decode, and the XCD remap. These are integer
-arithmetic on the program ID and know nothing about the matrix engine. They are
-roughly 60 lines and they are the entire shared surface.
+活下来的部分：M-tile 表、per-expert rebasing、tile → (expert, block_m, block_n)
+解码、XCD remap。这些都是对 program ID 做整数运算，与矩阵引擎无关。大约 60 行，
+也就是共享面的全部。
 
-**That is why the two implementations are separate files rather than an
-`if arch ==` inside one.** An in-file branch would be two disjoint bodies under
-one `def`, and it would drag 2200 lines of gfx9 MFMA/DPP/SRD primitives into the
-import graph of a gfx1250-only module. See `kernel/grouped_gemm_bf16_dispatch.py`
-for the dispatch that results.
+**这就是为什么两个实现是两个文件而不是一个 `if arch ==`。** 文件内分支会变成
+同一个 `def` 下两段毫无交集的函数体，而且会把 2200 行 gfx9 的 MFMA/DPP/SRD
+primitive 拖进一个只服务 gfx1250 的模块的 import 图。由此产生的分发逻辑见
+`kernel/grouped_gemm_bf16_dispatch.py`。
 
 ---
 
-## 1.2 The one structural thing that mapped for free
+## 1.2 唯一一处免费映射过来的结构
 
-The dense gfx1250 GEMM already clamps a ragged `M` with the TDM descriptor's
-dim-0 extent. A grouped GEMM's "the last tile of an expert is short" is *exactly*
-that problem. So the per-expert row count is fed straight into that extent:
-**no masking code and no second tile class.**
+gfx1250 的 dense GEMM 本来就用 TDM 描述符的 dim-0 extent 来 clamp ragged 的
+`M`。而 grouped GEMM 的"某个 expert 的最后一个 tile 是短的"**恰好就是**同一个
+问题。于是每个 expert 的行数被直接喂进那个 extent：**不需要任何 masking 代码，
+也不需要第二类 tile。**
 
-This is the same structural trick the gfx950 version plays with SRD
-`num_records`. The mechanism is completely different, the idea is identical —
-which is the theme of this whole document.
+gfx950 版用 SRD `num_records` 玩的是同一个结构性技巧。机制完全不同，思路完全
+相同 —— 这正是本文的主题。
 
-A consequence worth internalising: `_tail_quad_conds`, the gfx950 quadrant
-masking helper, has no counterpart here. It exists because of the 4-quadrant
-MFMA accumulator layout, and hardware extents make it unnecessary. **Ported code
-that keeps a masking helper it no longer needs is a sign the port was
-mechanical.**
+有一个推论值得记住：gfx950 的象限 masking 辅助函数 `_tail_quad_conds` 在这里
+没有对应物。它的存在是因为 MFMA 累加器的 4 象限布局，而硬件 extent 让它变得
+不必要。**如果移植过来的代码还保留着一个不再需要的 masking 辅助函数，那就是
+移植做得太机械的信号。**
 
 ---
 
-## 1.3 The transpose read: same job, different lane semantics
+## 1.3 转置读：同样的活，不同的 lane 语义
 
-Both parts have a hardware LDS transpose read, and it is tempting to treat them
-as the same instruction under two names. They are not.
+两颗芯片都有硬件 LDS 转置读，很容易把它们当成同一条指令的两个名字。**不是。**
 
 | | gfx950 | gfx1250 |
 |---|---|---|
-| mnemonic | `ds_read_b64_tr_b16` | `ds_load_tr16_b128` |
-| accepted by `llvm-mc -mcpu=gfx1250` | **no** | **yes** `[0x00,0x00,0xf0,0xdb,…]` **[LLVM]** |
-| accepted by `llvm-mc -mcpu=gfx950` | **yes** `[0x00,0x00,0xc6,0xd9,…]` | no **[LLVM]** |
-| how flydsl reaches it | inline asm, packed by `S2RLoaderTr16x32Bf16Wide` | `rocdl.ds_load_tr16_b128`, present in **0.2.4** **[FLYDSL]** |
-| immediate offset field | — | 16-bit unsigned; `offset:65535` encodes, `offset:65536` rejected **[LLVM]** |
+| 助记符 | `ds_read_b64_tr_b16` | `ds_load_tr16_b128` |
+| `llvm-mc -mcpu=gfx1250` 接受？ | **否** | **是** `[0x00,0x00,0xf0,0xdb,…]` **[LLVM]** |
+| `llvm-mc -mcpu=gfx950` 接受？ | **是** `[0x00,0x00,0xc6,0xd9,…]` | 否 **[LLVM]** |
+| flydsl 怎么调到 | inline asm，由 `S2RLoaderTr16x32Bf16Wide` 打包 | `rocdl.ds_load_tr16_b128`，**0.2.4** 就有 **[FLYDSL]** |
+| 立即数偏移字段 | — | 16-bit 无符号；`offset:65535` 可编码，`offset:65536` 被拒 **[LLVM]** |
 
-The gfx1250 semantics, **measured** rather than read off the manual:
+gfx1250 的语义，**实测**得来而非从手册读来：
 
-> Lanes work in groups of 8. Lane *j* supplies an address `a_j` pointing at 8
-> consecutive 16-bit elements. The hardware performs an 8×8 transpose, and lane
-> *l* receives `{a_j + l : j = 0..7}`.
+> lane 以 8 条为一组。lane *j* 提供一个地址 `a_j`，指向 8 个连续的 16-bit
+> 元素。硬件做 8×8 转置，lane *l* 拿到 `{a_j + l : j = 0..7}`。
 
-The ISA describes both instructions with one sentence — "Load **A or B matrix**
-with element-size of 16 bits into VGPRs from LDS and transpose" **[ISA §11.2.4]**
-— and that sentence is true of both while telling you nothing about which lane
-ends up holding which element. The lane map is the part you have to measure.
+ISA 用一句话描述这两条指令 —— "Load **A or B matrix** with element-size of
+16 bits into VGPRs from LDS and transpose" **[ISA §11.2.4]** —— 这句话对两者
+都成立，但它完全没告诉你哪条 lane 最后拿到哪个元素。**lane 映射是必须实测的
+那部分。**
 
-**`probes/probe_nn_frag.py` in this repository is that measurement.** It is
-worth running before trusting any derivation, because of the failure mode in the
-next paragraph.
+**本仓库的 `probes/probe_nn_frag.py` 就是这次实测。** 在相信任何推导之前都值得
+先跑一遍，原因见下一段。
 
-### The failure mode that makes guessing dangerous
+### 让"猜"变得危险的失败模式
 
-`ds_load_tr16_b128` requires 16-byte-aligned addresses. Given a misaligned one it
-does **not** fault — it **silently degrades into a plain, non-transposing 128-bit
-load**. You get a plausible-looking tensor of the right shape, full of wrong
-numbers.
+`ds_load_tr16_b128` 要求 16 字节对齐的地址。给它一个未对齐的地址，它**不会
+fault** —— 它会**静默退化成一次普通的、不转置的 128-bit load**。你会得到一个
+形状完全正确、数值全错、看上去很合理的张量。
 
-This is why `nn_native_unsupported_reason()` treats `N % 8 == 0` as a hard gate
-rather than a performance hint, and why "we reasoned carefully about the lane
-map" is not an acceptable substitute for having run the probe.
+这就是为什么 `nn_native_unsupported_reason()` 把 `N % 8 == 0` 当成硬门槛而不是
+性能提示，也是为什么"我们仔细推导过 lane 映射"不能替代"跑过那个探针"。
 
-`global_load_tr16_b128`, the global-memory sibling, does **not** have this
-restriction: **[MEASURED]** per-lane strides of 9 and 12 elements (18 B and 24 B,
-both unaligned) transposed correctly. Its addresses are independent VMEM
-addresses and are not subject to LDS bank constraints. See
-`docs/03-isa-investigation.md` §Route 5.
+`global_load_tr16_b128`，即它在 global 显存上的兄弟，**没有**这个限制：
+**[实测]** per-lane 跨步为 9 和 12 个元素（18 B 和 24 B，都未对齐）时仍能正确
+转置。它的地址是独立的 VMEM 地址，不受 LDS bank 约束。见
+`docs/03-isa-investigation.md` §路线 5。
 
 ---
 
-## 1.4 TDM: what it buys and what it costs
+## 1.4 TDM：买到了什么，代价是什么
 
-The Tensor Data Mover replaces `buffer_load` + SRD. It is an async DMA engine
-that takes a descriptor (base, per-dim extents, per-dim strides, LDS padding) and
-moves a whole tile.
+Tensor Data Mover 取代了 `buffer_load` + SRD。它是一个异步 DMA 引擎，接受一个
+描述符（base、逐维 extent、逐维 stride、LDS padding），搬运一整个 tile。
 
-**What it buys.** Address generation for free. Hardware out-of-bounds clamping on
-two axes. Asynchrony that the multi-buffer pipeline is built on. And — this is
-not incidental — **LDS padding designed for transposes**: the ISA says the
-padding exists "to facilitate matrix transpose operations or avoid LDS bank
-conflicts" **[ISA §10.11.2, §10.11.3]**. TDM-to-LDS-to-transpose-read is the
-pipeline the chip designers had in mind, not a workaround.
+**买到了什么。** 免费的地址生成。两个轴上的硬件越界 clamp。整条 multi-buffer
+流水线赖以建立的异步性。还有 —— 这一条不是附带的 —— **为转置而设计的 LDS
+padding**：ISA 明说这个 padding 的存在是为了 "to facilitate matrix transpose
+operations or avoid LDS bank conflicts" **[ISA §10.11.2, §10.11.3]**。
+TDM → LDS → 转置读**本来就是芯片设计者预设的流水线**，不是绕路。
 
-**What it costs**, in the form of three constraints that each took real debugging:
+**代价是什么**，具体化为五条各自付出过真实调试成本的约束：
 
-1. **The innermost stride is hardcoded to `dataSize`.** The descriptor's stride
-   fields apply to outer dimensions only. TDM therefore *cannot* express a tile
-   whose innermost axis is non-contiguous, which kills any idea of expressing a
-   transpose in the descriptor. Hardware limitation, confirmed independently by
-   flydsl's `make_tdm_atom` ("the innermost stride is assumed 1 and ignored") in
-   both 0.2.4 and 0.3.2. **[ISA + FLYDSL]** Full derivation in
-   `docs/03-isa-investigation.md` §Route 1.
+1. **最内层 stride 被硬编码为 `dataSize`。** 描述符的 stride 字段只作用于外层
+   维度。因此 TDM *无法*表达一个最内层非连续的 tile，这直接堵死了"在描述符里
+   表达转置"的想法。这是硬件限制，并由 flydsl 的 `make_tdm_atom`（"the
+   innermost stride is assumed 1 and ignored"）在 0.2.4 与 0.3.2 中独立佐证。
+   **[ISA + FLYDSL]** 完整推导见 `docs/03-isa-investigation.md` §路线 1。
 
-2. **An extent is measured from the copy's `imm_offset`, not from the descriptor
-   base.** Build a descriptor once with the full token count and walk it with
-   `imm_offset`, and it clamps *nothing*. **[MEASURED]** every expert whose token
-   count was not a multiple of `tile_k` pulled in a whole extra tile of the next
-   expert's tokens; the error tracked `m_len % tile_k` exactly, experts dividing
-   evenly were correct at the noise floor and the rest ran 26.6–96.8 % wrong.
-   The fix: rebuild the descriptor per k-tile with the row offset folded into the
-   base, and copy with `imm_offset=0`.
+2. **extent 是从拷贝的 `imm_offset` 起算的，不是从描述符 base 起算的。**
+   用完整 token 数建一次描述符再用 `imm_offset` 往前走，它 clamp 的是**零**。
+   **[实测]** 每个 token 数不是 `tile_k` 整数倍的 expert 都会多拉进下一个
+   expert 的一整个 tile；误差精确地跟随 `m_len % tile_k`，整除的 expert 正确
+   到噪声底，其余的错 26.6–96.8%。修法：每个 k-tile 重建描述符，把行偏移折进
+   base，用 `imm_offset=0` 拷贝。
 
-3. **dim-0 and dim-1 extents are not symmetric.** **[MEASURED]**
+3. **dim-0 和 dim-1 的 extent 不对称。** **[实测]**
 
-   | | bounds addressing? | how it was established |
+   | | 约束寻址？ | 怎么确立的 |
    |---|---|---|
-   | dim-0 extent | **yes**, row-granular | declared 256 rows / 128 valid, never over-read |
-   | dim-1 on a **store** | **yes** | a 1 MiB sentinel past the output survived a ragged K, element for element |
-   | dim-1 on a **load** | **no** — clamps data only | declared 512 B / 256 B valid walked off the allocation → `Memory access fault … Page not present` |
+   | dim-0 extent | **是**，行粒度 | 声明 256 行 / 128 行有效，从未越读 |
+   | dim-1 用于 **store** | **是** | 输出之后 1 MiB 的哨兵在 ragged K 下逐元素完好 |
+   | dim-1 用于 **load** | **否** —— 只 clamp 数据 | 声明 512 B / 256 B 有效，走出了分配区 → `Memory access fault … Page not present` |
 
-   **Design rule, followed everywhere in this kernel: put the ragged axis on
-   dim 0, and never rely on dim-1 to bound a load.** Where that is impossible —
-   the NN pipeline's ragged output axis `N` *is* B's dim 1 — back the read window
-   off to `[N - tile_n, N)` and shift the fragment column index by `n_back`.
+   **全 kernel 遵循的设计规则：把 ragged 轴放在 dim 0，永远不要指望 dim-1 去
+   约束一次 load。** 做不到的地方 —— NN 流水线的 ragged 输出轴 `N` *就是* B 的
+   dim 1 —— 就把读窗口退让到 `[N - tile_n, N)`，fragment 的列索引偏移
+   `n_back`。
 
-4. **`pad_interval` must be a power of two** (flydsl: `padInterval must be a
-   power of two (in elements)`). The NN B-stage row width is `tile_n * 2`, so
-   **`tile_n = 192` cannot be built at all** on any transposing stage. This is a
-   real cost: it is the entire reason the native NN path gives up one delivery
-   point to the hoisted path (`docs/05-optimization-log.md`).
+4. **`pad_interval` 必须是 2 的幂**（flydsl：`padInterval must be a power of
+   two (in elements)`）。NN 的 B stage 行宽是 `tile_n * 2`，所以
+   **`tile_n = 192` 在任何转置 stage 上都建不出来**。这是实打实的代价：原生
+   NN 路径输给 hoist 路径的那一个交付点，全部原因就是它
+   （`docs/05-optimization-log.md`）。
 
-5. **The outstanding-DMA budget is per WAVE, not per workgroup.** A and B are
-   issued by *different* waves, so each issuing wave has one outstanding DMA per
-   k-tile, not two. Counting both makes `tensor_wait` a no-op and the pipeline
-   reads LDS the DMA has not filled. **[MEASURED]** symptom: **71.16 % of output
-   elements NaN**, the remainder at infinite relative error — random bits, not a
-   precision problem. Discriminator: `num_buffers` 3→2 makes it go away.
+5. **未完成 DMA 的配额是按 WAVE 算的，不是按 workgroup 算的。** A 和 B 由
+   *不同的* wave 发起，所以每个发起 wave 每个 k-tile 只有一个未完成 DMA，
+   不是两个。算成两个会让 `tensor_wait` 变成空操作，流水线读到 DMA 还没填的
+   LDS。**[实测]** 症状：**71.16% 的输出元素是 NaN**，其余是无穷大的相对误差
+   —— 是随机比特，不是精度问题。判别方法：`num_buffers` 从 3 改成 2 就好了。
 
 ---
 
-## 1.5 What this means for the next port
+## 1.5 这对下一次移植意味着什么
 
-Three transferable lessons, stated as advice rather than as findings:
+三条可迁移的经验，作为建议而非结论陈述：
 
-**Port the contract, then rebuild the body.** The three public entry points here
-keep the gfx950 names, the first three positional parameters and the keyword
-spellings. Everything below the signature is new. That is what let the
-integration layer stay a dispatch decision rather than a rewrite.
+**先搬契约，再重建函数体。** 这里的三个公开入口保留了 gfx950 的名字、前三个
+位置参数和关键字拼写。签名以下全是新的。正因如此，集成层只需要做一个分发决策
+而不是一次重写。
 
-**Measure the lane semantics of anything that permutes data.** The single
-highest-risk item in this port was assuming `ds_load_tr16_b128` behaved like
-`ds_read_b64_tr_b16`. It does not, and the failure mode is silent. One probe
-script, one hour, removes the entire class of risk.
+**任何会置换数据的东西，它的 lane 语义必须实测。** 本次移植风险最高的单项，就是
+假设 `ds_load_tr16_b128` 的行为和 `ds_read_b64_tr_b16` 一样。它不一样，而且
+失败是静默的。一个探针脚本、一小时，消除整整一类风险。
 
-**Expect the tuning table not to travel.** Every threshold in `_pick_config` was
-re-fitted. `GROUP_M` went 4 → 16, `num_xcd` went 8 → 1, the tile-selection
-thresholds are different, and two of the rules have **no established mechanism**
-and are explicitly flagged as such in the docstring. A shared `_pick_config`
-across arches would be an invitation to extrapolate rules that cannot support it.
+**别指望调优表能跟着搬过来。** `_pick_config` 里每一个阈值都重新拟合过。
+`GROUP_M` 从 4 变 16，`num_xcd` 从 8 变 1，tile 选择阈值全都不同，其中两条规则
+**机制未确立**并在 docstring 里被明确标出。跨 arch 共享一个 `_pick_config`，
+等于邀请别人去外推那些根本撑不住的规则。

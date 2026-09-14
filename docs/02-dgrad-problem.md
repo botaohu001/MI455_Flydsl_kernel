@@ -1,227 +1,213 @@
-# 2. The dgrad transpose problem, end to end
+# 2. dgrad 转置问题，从头到尾
 
-This is the central problem of the whole port. It is worth following the chain
-in order, because three of the obvious escapes are dead ends and knowing *why*
-they are dead is most of the value.
+这是整个移植的核心问题。值得按顺序把这条链走一遍，因为三条看上去显然的出路都
+是死路，而**知道它们为什么是死路**，是本文大部分价值所在。
 
 ---
 
-## 2.1 The chain
+## 2.1 推理链
 
-**Step 1 — WMMA wants both operands contiguous along the reduction axis.**
+**第 1 步 —— WMMA 要求两个操作数都沿归约轴连续。**
 
-`v_wmma_f32_16x16x32_bf16` takes A as 16×32 and B as 32×16. The fragment loader
-gathers 8 consecutive 16-bit elements per lane *along the reduction*. If the
-reduction axis is strided in memory, the fragment cannot be assembled with a
-plain `ds_read_b128`.
+`v_wmma_f32_16x16x32_bf16` 吃 16×32 的 A 和 32×16 的 B。fragment 加载器**沿
+归约轴**为每条 lane 取 8 个连续的 16-bit 元素。如果归约轴在内存里是跨步的，
+就没法用普通的 `ds_read_b128` 装配出 fragment。
 
-**Step 2 — dgrad's reduction axis is the weight's strided axis.**
+**第 2 步 —— dgrad 的归约轴恰好是权重的跨步轴。**
 
-Line up all three passes using the NN entry's own convention,
-`out[m,n] = Σ_k a[m,k] · b[g][k,n]`:
+用 NN 入口自己的记号 `out[m,n] = Σ_k a[m,k] · b[g][k,n]` 把三个 pass 摆平：
 
-| pass | operand | memory shape | where the reduction axis sits | loader needed |
+| pass | 操作数 | 内存形状 | 归约轴在哪 | 需要的加载器 |
 |---|---|---|---|---|
-| fwd (NT) | `a[M,K]` | rows = m, cols = k | column — **contiguous** | `ds_read_b128` |
-| fwd (NT) | `b_nt[G,N,K]` | rows = n, cols = k | column — **contiguous** | `ds_read_b128` |
-| **dgrad (NN)** | `a[M,K]` | rows = m, cols = k | column — **contiguous** | `ds_read_b128` |
-| **dgrad (NN)** | `b[G,K,N]` | rows = k, cols = n | **row — strided** | transpose read |
-| wgrad | `A[M,OUT_M]` | rows = m, cols = i | **row — strided** | transpose read |
-| wgrad | `B[M,OUT_N]` | rows = m, cols = j | **row — strided** | transpose read |
+| fwd (NT) | `a[M,K]` | 行=m, 列=k | 列 —— **连续** | `ds_read_b128` |
+| fwd (NT) | `b_nt[G,N,K]` | 行=n, 列=k | 列 —— **连续** | `ds_read_b128` |
+| **dgrad (NN)** | `a[M,K]` | 行=m, 列=k | 列 —— **连续** | `ds_read_b128` |
+| **dgrad (NN)** | `b[G,K,N]` | 行=k, 列=n | **行 —— 跨步** | 转置读 |
+| wgrad | `A[M,OUT_M]` | 行=m, 列=i | **行 —— 跨步** | 转置读 |
+| wgrad | `B[M,OUT_N]` | 行=m, 列=j | **行 —— 跨步** | 转置读 |
 
-dgrad is the only pass with a **mixed** operand pair: one contiguous, one
-strided. That mix is the whole problem.
+dgrad 是唯一一个操作数对**混合**的 pass：一个连续、一个跨步。这个混合就是问题
+本身。
 
-**Step 3 — gfx950 solves this in hardware, wired into its NN pipeline.**
+**第 3 步 —— gfx950 用硬件解决它，而且接在它的 NN 流水线上。**
 
-Its `gemm_bf16_nn_tile` flips one boolean, `a_transpose`, which swaps the
-S2R loader between `S2RLoader16x16Bf16` (plain) and `S2RLoaderTr16x32Bf16Wide`
-(a packed block of `ds_read_b64_tr_b16` inline asm). Same tile body, one loader
-swapped. Its NN kernel therefore consumes `b[G,K,N]` natively.
+它的 `gemm_bf16_nn_tile` 翻一个布尔 `a_transpose`，在 `S2RLoader16x16Bf16`
+（普通）和 `S2RLoaderTr16x32Bf16Wide`（一块打包的 `ds_read_b64_tr_b16` inline
+asm）之间切换 S2R 加载器。同一个 tile body，换一个加载器。所以它的 NN kernel
+原生就吃 `b[G,K,N]`。
 
-**Step 4 — gfx1250 has the equivalent instruction, wired into the wrong pass.**
+**第 4 步 —— gfx1250 有等价指令，却接在了另一个 pass 上。**
 
-`ds_load_tr16_b128` exists, encodes, and is exercised on real hardware every
-time the wgrad kernel runs — *both* of wgrad's operands go through it. It was
-simply never connected to an NN pipeline, on the reasoning (recorded in the
-upstream notes) that doing so meant "a third full kernel body written with no
-hardware to check it against."
+`ds_load_tr16_b128` 存在、能编码，而且 wgrad kernel 每次运行都在真实硬件上用它
+—— wgrad 的*两个*操作数都走这条指令。它只是从没被接到 NN 流水线上，理由（记在
+上游 notes 里）是这等于"a third full kernel body written with no hardware to
+check it against"。
 
-**Step 5 — so dgrad was the NT kernel fed a transposed weight.**
+**第 5 步 —— 于是 dgrad 就成了"喂给 NT kernel 一份转置好的权重"。**
 
 ```python
 b_nt = make_nn_weight_nt(b)       # b.transpose(1,2).contiguous()
 da   = grouped_gemm_bf16_nn_flydsl_kernel(dout, b, offs, b_nt=b_nt)
 ```
 
-Pure algebra, zero new kernel code, and somebody has to pay for the transpose.
+纯代数，零新增 kernel 代码，然后总得有人为这次转置买单。
 
-**Step 6 — the cost is not a rounding error.**
+**第 6 步 —— 代价不是零头。**
 
-**[MEASURED]** with the upstream helper, per call:
+**[实测]** 用上游那个 helper，per-call：
 
-| shape | weight | transpose | the GEMM itself | ratio |
+| shape | 权重 | 转置 | GEMM 本身 | 倍数 |
 |---|--:|--:|--:|--:|
 | deepseek-v3 fc1, avg_m=128 | 1.88 GB | **2.95 ms** | 0.296 ms | **10.0×** |
 | deepseek-v3 fc2, avg_m=128 | 0.94 GB | 1.66 ms | 0.161 ms | 10.3× |
 | qwen3-235b fc1, avg_m=512 | 1.07 GB | 1.55 ms | 0.379 ms | 4.1× |
 | gpt-oss fc1, avg_m=512 | 0.13 GB | 0.238 ms | 0.074 ms | 3.2× |
 
-Across the 24-cell matrix the per-call transpose makes dgrad **2.33× to 11.41×
-slower** (median 3.87×) than the hoisted calibre, and lands it at **0.32×
-Triton** — i.e. three times slower than just calling Triton. The integration
-branch gated this path off by default for exactly that reason.
+在 24 格矩阵上，per-call 转置让 dgrad 比 hoist 口径慢 **2.33× 到 11.41×**
+（中位 3.87×），并把它拉到 **Triton 的 0.324×** —— 也就是比根本不用这个 kernel
+还慢三倍。集成分支把这条路径默认关掉，正是这个原因。
 
-**Step 7 — the fix is to wire wgrad's transpose read onto NN.**
+**第 7 步 —— 解法是把 wgrad 的转置读接到 NN 上。**
 
-Look again at the table in step 2. **dgrad's B operand and wgrad's operands are
-the same shape**: reduction axis on the rows, output axis contiguous on the
-columns. The difference is what a row *means* — a token in wgrad, a reduction
-index in dgrad — and **that meaning does not appear anywhere in the generated
-code**. It is only `LDS_ROW` and a column offset.
+再看一遍第 2 步那张表。**dgrad 的 B 操作数和 wgrad 的操作数是同一种形状**：
+归约轴当行、输出轴当连续的列。区别只在一行*意味着*什么 —— wgrad 里是 token，
+dgrad 里是 reduction index —— 而**这个含义在生成的代码里根本不出现**，
+只体现为 `LDS_ROW` 和一个列偏移。
 
-So the NN pipeline is the NT pipeline with B's LDS geometry transposed and B's
-fragment loader swapped. One boolean, `b_lds_transpose`, on the existing NT
-launcher — structurally the same move gfx950 makes with `a_transpose`.
+所以 NN 流水线就是"B 的 LDS 几何转过来、B 的 fragment 加载器换掉"的 NT 流水线。
+在现有 NT launcher 上加一个布尔 `b_lds_transpose` —— 结构上和 gfx950 用
+`a_transpose` 做的是同一件事。
 
-`docs/04-native-nn-pipeline.md` is the implementation.
+实现见 `docs/04-native-nn-pipeline.md`。
 
 ---
 
-## 2.2 Dead end: make the transpose cheap instead
+## 2.2 死路一：不如把转置本身做快
 
-Before replacing the pipeline, the obvious question is whether the transpose is
-slow because transposes are slow, or because *this* transpose is slow.
+在换掉整条流水线之前，显然要先问：转置慢，是因为转置这件事慢，还是因为*这个*
+转置慢？
 
-**It is the helper.** **[MEASURED]**
+**是 helper 的问题。** **[实测]**
 
-| implementation | bandwidth | vs `make_nn_weight_nt` |
+| 实现 | 带宽 | vs `make_nn_weight_nt` |
 |---|--:|--:|
 | `make_nn_weight_nt` = `b.transpose(1,2).contiguous()` | 1.07–1.39 TB/s | 1.0× |
-| a plain `torch` copy of the same bytes, no permutation | 7.05–11.1 TB/s | ~6× |
-| **a ~20-line tiled Triton transpose** | **15.5–17.1 TB/s** | **11.0–14.9×** |
+| 同样字节数的普通 `torch` 拷贝，不做置换 | 7.05–11.1 TB/s | ~6× |
+| **约 20 行的 tiled Triton 转置** | **15.5–17.1 TB/s** | **11.0–14.9×** |
 
-MI455X HBM4 peak is ~19.6 TB/s, so the upstream helper runs at **6–7 % of peak**
-and the replacement at **~82 %** — faster than torch's *non*-transposing copy.
-Bit-exact against `make_nn_weight_nt` on every shape tested. The kernel is in
-`benchmarks/bench_transpose.py`; it reads a `BN×BK` tile coalesced along K and
-writes it coalesced along N, so both sides move full cache lines. The torch path
-only gets one of them.
+MI455X 的 HBM4 峰值约 19.6 TB/s，所以上游 helper 跑在**峰值的 6–7%**，
+替代品跑在 **~82%** —— 比 torch 那个*不*转置的拷贝还快。在所有测过的 shape 上
+与 `make_nn_weight_nt` 逐位相同。kernel 在 `benchmarks/bench_transpose.py`：
+它按 `BN×BK` 的 tile 沿 K 合并读入、沿 N 合并写出，所以两侧都在搬完整的
+cache line。torch 那条路只做到了其中一侧。
 
-**This is a real and unconditional win — but it does not make the problem go
-away.** Even with the fast transpose, the native NN pipeline is **1.357× faster
-per call** (geomean, 24/24 cells, range 1.11–1.91×). The reason is in §2.5.
+**这是一个实打实、无条件的胜利 —— 但它并没有让问题消失。** 即便用上快转置，
+原生 NN 流水线仍然**每次调用快 1.357×**（几何均值，24/24，区间 1.11–1.91×）。
+原因在 §2.5。
 
-> **If you take one thing from this section:** before optimising around a slow
-> operation, check whether the operation is slow or the *implementation* is. A
-> 20-line kernel closed an 11–14× gap that three separate documents had been
-> treating as a fixed cost of doing business.
+> **如果这一节你只带走一句话：** 在围绕一个慢操作做优化之前，先确认是这个操作
+> 慢，还是它的*实现*慢。20 行 kernel 填平了一个 11–14 倍的差距，而此前三份
+> 独立文档都把它当成做生意的固定成本。
 
 ---
 
-## 2.3 Dead end: cache the transposed weight
+## 2.3 死路二：缓存转置后的权重
 
-If the transpose only changes when the weights change, cache it across the
-micro-batches of one optimizer step. A prototype was built and it works —
-**38 assertions, 0 failures**, covering hit/miss identity, bitwise equality
-against a fresh hoist, `_version` refresh, three-live-weights isolation,
-eviction on free, and `set_()` invalidation.
+如果转置只在权重变化时才需要重做，那就在一个 optimizer step 的多个 micro-batch
+之间缓存它。原型建出来了，而且能用 —— **38 条断言，0 失败**，覆盖命中/未命中
+的对象一致性、与新鲜 hoist 的逐位相等、`_version` 刷新、三份活权重互不串扰、
+权重释放时逐出、以及 `set_()` 触发失效。
 
-**It should not ship.** Four reasons, in descending order of severity.
+**它不该上线。** 四个理由，按严重性递减。
 
-### It is silently wrong under a fused optimizer
+### 它在 fused optimizer 下会静默算错
 
-A cache keyed on `param._version` assumes every write to a parameter bumps it.
-**[MEASURED]** on torch 2.11.0+rocm7.14:
+以 `param._version` 为 key 的缓存，假设每次对参数的写入都会 bump 它。
+**[实测]** torch 2.11.0+rocm7.14：
 
-| how the parameter is written | `_version` bumped? | |
+| 参数被写入的方式 | `_version` bump 了吗？ | |
 |---|---|---|
-| `SGD.step()` | 0→1 | safe |
-| `AdamW.step()` (default / `foreach=True` / `foreach=False`) | 0→2 | safe |
-| `Adam(capturable=True).step()` | 0→1 | safe |
-| **`AdamW(fused=True).step()`** | **0→0** | **UNSAFE** |
-| **`p.data.copy_(...)`** | **0→0** | **UNSAFE** |
-| **`p.data.add_(...)`** | **0→0** | **UNSAFE** |
-| `with no_grad: p.copy_/add_` | 0→1 | safe |
-| `p.detach().copy_(...)` | 0→1 | safe |
+| `SGD.step()` | 0→1 | 安全 |
+| `AdamW.step()`（默认 / `foreach=True` / `foreach=False`） | 0→2 | 安全 |
+| `Adam(capturable=True).step()` | 0→1 | 安全 |
+| **`AdamW(fused=True).step()`** | **0→0** | **不安全** |
+| **`p.data.copy_(...)`** | **0→0** | **不安全** |
+| **`p.data.add_(...)`** | **0→0** | **不安全** |
+| `with no_grad: p.copy_/add_` | 0→1 | 安全 |
+| `p.detach().copy_(...)` | 0→1 | 安全 |
 
-Demonstrated end to end: after a real `AdamW(fused=True).step()` the cache
-serves the previous step's transpose and dgrad comes out at **9.99e-02 relative
-error**. No exception, no NaN, gradients that look entirely plausible.
+端到端复现过：在一次真实的 `AdamW(fused=True).step()` 之后，缓存返回上一步的
+转置结果，dgrad 得到 **9.99e-02 的相对误差**。没有异常，没有 NaN，梯度看起来
+完全合理。
 
-A cache *can* be made safe — invalidate from an
-`optimizer.register_step_post_hook` instead of from `_version` — but that is a
-framework-level contract a kernel cannot enforce, and it **fails open**.
+缓存*可以*做安全 —— 改成从 `optimizer.register_step_post_hook` 失效而不是从
+`_version` 失效 —— 但那是一个 kernel 无法强制的框架层契约，而且它**fail
+open**。
 
-### It costs a full duplicate of the expert weights
+### 它的代价是一整份专家权重
 
-**[MEASURED]** HBM on this part is 463 856 467 968 B = **432.0 GiB / 463.9 GB**.
+**[实测]** 本芯片 HBM 为 463 856 467 968 B = **432.0 GiB / 463.9 GB**。
 
-| model (EP=8) | per MoE layer | all MoE layers | transposed copy | % of HBM |
+| 模型（EP=8） | 每 MoE 层 | 全部 MoE 层 | 转置副本 | 占 HBM |
 |---|--:|--:|--:|--:|
 | gpt-oss-20b | 189.8 MiB | 4.45 GiB | +4.45 GiB | 1.03 % |
 | qwen3-30b-a3b | 384.0 MiB | 18.00 GiB | +18.00 GiB | 4.17 % |
 | qwen3-235b-a22b | 1536.0 MiB | 141.00 GiB | **+141.00 GiB** | **32.64 %** |
 | deepseek-v3 | 2688.0 MiB | 152.25 GiB | **+152.25 GiB** | **35.24 %** |
 
-For the two large models that takes expert weights from 33–35 % of HBM to
-65–70 %, before optimizer state and activations.
+对两个大模型，这把专家权重从占 HBM 的 33–35% 推到 65–70%，还没算 optimizer
+state 和 activation。
 
-### It cannot be made smaller
+### 它没法做小
 
-Backward visits each layer once per micro-batch, so an entry filled at layer *L*
-in micro-batch *i* is next hit at layer *L* in micro-batch *i+1* — after every
-other layer has been through. **Bounding the cache to fewer entries than there
-are layers drives the hit rate to zero.** It is all-or-nothing by construction.
+反向每个 micro-batch 只访问每一层一次，所以在 micro-batch *i* 填入第 *L* 层的
+表项，下一次命中是 micro-batch *i+1* 的第 *L* 层 —— 中间隔着其余所有层。
+**把缓存限制到少于层数的表项，命中率直接归零。** 它在构造上就是全有或全无。
 
-### Once the transpose is fast, it buys almost nothing
+### 一旦转置变快，它几乎买不到什么
 
-With the tiled transpose, **every one of the 24 cells at `avg_m ≥ 1536` has
-N\* < 1** (range 0.14–0.92) — the transpose pays for itself *inside a single
-call*, so there is nothing left to amortise. Adding the cache lifts the geomean
-over 42 cells from 1.099 to 1.171. **That is +7 %, on dgrad only, for 141–152
-GiB and a silent-wrong-gradient failure mode.**
+用上 tiled 转置后，**`avg_m ≥ 1536` 的全部 24 格 N\* < 1**（区间 0.14–0.92）
+—— 转置在*单次调用之内*就回本了，没有什么可摊销的。加上缓存，42 格的几何均值
+从 1.099 提到 1.171。**也就是 +7%，只作用于 dgrad，代价是 141–152 GiB 外加一个
+静默算错梯度的失败模式。**
 
-(N\* = `t_transpose / (t_triton − t_gemm)`, the number of calls a hoisted
-transpose must serve before it beats falling back to Triton.)
+（N\* = `t_transpose / (t_triton − t_gemm)`，即一份 hoist 的转置要服务多少次
+调用才能打过回退 Triton。）
 
-The native NN pipeline makes the whole question moot: it reads the current
-weights every call, so **there is structurally nothing to invalidate.**
+原生 NN 流水线让整个问题不复存在：它每次都读当前权重，所以**结构上就没有任何
+需要失效的东西**。
 
 ---
 
-## 2.4 Dead end: find an algebraic way out
+## 2.4 死路三：找一条代数出路
 
-**There isn't one, and it can be shown rather than argued.**
+**没有，而且这可以论证而不只是主张。**
 
-Write the weight as `W[g]`, logically `[N,K]`:
+把权重写成 `W[g]`，逻辑上是 `[N,K]`：
 
-| pass | reduction axis | `W` stored `[G,N,K]` | `W` stored `[G,K,N]` |
+| pass | 归约轴 | `W` 存 `[G,N,K]` | `W` 存 `[G,K,N]` |
 |---|---|---|---|
-| fwd `y = x·Wᵀ` | k | k contiguous ✓ | k strided ✗ |
-| dgrad `dx = dy·W` | n | n strided ✗ | n contiguous ✓ |
+| fwd `y = x·Wᵀ` | k | k 连续 ✓ | k 跨步 ✗ |
+| dgrad `dx = dy·W` | n | n 跨步 ✗ | n 连续 ✓ |
 
-**The two passes need opposite major orders of the same array.** No single
-storage layout satisfies both. This is not a limitation of this kernel; it is
-why the part has a transpose-read instruction in the first place.
+**两个 pass 需要同一个数组的相反主序。** 没有任何单一存储布局能同时满足。
+这不是本 kernel 的局限；这正是这颗芯片一开始就要有转置读指令的原因。
 
-`(AᵀB)ᵀ = BᵀA` does not rescue it. That identity renames which operand is A and
-which is B and transposes the *output*; it changes the stride of neither operand
-along `n`. It works for wgrad only because there the constraint being dodged is
-`trans_c`, which is an **epilogue** property — C is an output and its layout is a
-free choice. dgrad's problem is the storage orientation of an **input**.
+`(AᵀB)ᵀ = BᵀA` 救不了它。这个恒等式只是重命名了谁是 A 谁是 B，并转置了*输出*；
+它不改变任何一个操作数沿 `n` 的跨步。它在 wgrad 上管用，是因为那里被绕开的
+约束是 `trans_c`，而那是一个**epilogue** 属性 —— C 是输出，它的布局是自由
+选择。dgrad 的问题出在一个**输入**的存储朝向上。
 
-### The one expressible reformulation, measured rather than argued
+### 唯一可表达的重排，用实测而不是争论来处理
 
-For a single group, `da[rows_g] = (dout[rows_g]ᵀ)ᵀ @ w[g]` is exactly one
-variable-K call with `G=1`. This transposes the **activations** instead of the
-weight, and `dout` is smaller than `w` whenever `avg_m < K` — by up to 56× for
-deepseek fc1 at avg_m=128.
+对单个 group，`da[rows_g] = (dout[rows_g]ᵀ)ᵀ @ w[g]` 恰好是一次 `G=1` 的
+variable-K 调用。它转置的是**激活**而不是权重，而只要 `avg_m < K`，`dout` 就比
+`w` 小 —— deepseek fc1 在 avg_m=128 时小到 56 倍。
 
-It is **numerically correct** — bitwise identical to the NT route in all 8 cells
-tested — and **1.5× to 10.5× slower than everything else**:
+它**数值正确** —— 测过的 8 格全部与 NT 路线逐位相同 —— 而且
+**比其它所有做法慢 1.5× 到 10.5×**：
 
-| shape | variable-K route | NT + hoisted | NT + per-call fast tr | Triton |
+| shape | variable-K 路线 | NT + hoist | NT + per-call 快转置 | Triton |
 |---|--:|--:|--:|--:|
 | gpt-oss fc1 avg_m=512 | 0.359 | 0.077 | 0.109 | 0.122 |
 | qwen3-30b fc1 avg_m=512 | 1.009 | 0.125 | 0.168 | 0.103 |
@@ -229,58 +215,52 @@ tested — and **1.5× to 10.5× slower than everything else**:
 | deepseek fc1 avg_m=128 | 2.034 | 0.295 | 0.529 | 0.392 |
 | deepseek fc2 avg_m=512 | 3.205 | 0.338 | 0.451 | 0.341 |
 
-It pays G serialised launches (4–32), each with only `N` rows of reduction depth,
-and drops to the 64×64 fallback tile when `avg_m < 256`. A cheap activation
-transpose does not come close to covering that. Dead.
+它要付 G 次串行 launch（4–32 次），每次只有 `N` 行归约深度，而且 `avg_m < 256`
+时还会掉到 64×64 的 fallback tile。激活转置便宜远远补不回来。死路。
 
 ---
 
-## 2.5 A modelling trap worth keeping
+## 2.5 一个值得记住的建模陷阱
 
-The natural cost model for "should I hoist the transpose?" is
+"该不该 hoist 转置"的自然成本模型是
 
 ```
 t_eff(N) = t_gemm + t_transpose / N
 ```
 
-Checked against directly measured end-to-end `N ∈ {1,2,4,8,16,32}`:
+对着直接实测的端到端 `N ∈ {1,2,4,8,16,32}` 核对：
 
-- **With the slow upstream transpose: the model holds.** Median |deviation|
-  0.92 %, range −1.23 % to +4.69 % over 144 points.
-- **With the fast transpose: it holds for N ≥ 2 and breaks at N = 1**, by up to
-  **+35 %**. Expressed per window the miss is a **fixed ~5 µs** that does not
-  scale with N — a dependent-launch boundary. It only looks large as a
-  percentage because the fast transpose is itself only 11–236 µs.
+- **用上游那个慢转置：模型成立。** |偏差| 中位 0.92%，144 个点上范围
+  −1.23% 到 +4.69%。
+- **用快转置：N ≥ 2 成立，N = 1 崩。** 最大 **+35%**。按每个窗口折算，这个误差
+  是**固定的约 5 µs**，不随 N 变化 —— 是一次依赖 launch 的边界开销。它之所以
+  在百分比上显得大，只是因为快转置本身才 11–236 µs。
 
-**N = 1 is exactly the per-call case**, i.e. the model under-predicts the cost
-precisely where you are deciding whether you can skip the cache.
+**N = 1 恰恰就是 per-call 那种情形**，也就是说模型低估成本的地方，正好是你在
+用它判断"能不能不做缓存"的地方。
 
-This is also why the native NN pipeline's advantage over "flydsl + fast
-transpose per call" is **1.357×** rather than the 1–6 % the linear model
-predicts. **[MEASURED]** the two cannot overlap: the transpose must write the
-entire weight and land it before the GEMM can read it, and what the GEMM then
-reads is a cold L2 that the transpose just evicted. For gpt-oss fc1 at
-avg_m=512 the transpose increment is 0.0963 − 0.0623 = **0.0340 ms**, i.e.
-**7.8 TB/s** — about half its standalone measured bandwidth.
+这也是为什么原生 NN 流水线相对"flydsl + per-call 快转置"的优势是 **1.357×**
+而不是线性模型预测的 1–6%。**[实测]** 两者无法重叠：转置必须把整份权重写完
+落地，GEMM 才能读，而 GEMM 接着读到的是刚被转置自己冲掉的冷 L2。以 gpt-oss
+fc1 @ avg_m=512 为例，转置增量是 0.0963 − 0.0623 = **0.0340 ms**，折合
+**7.8 TB/s** —— 约为它独立测量带宽的一半。
 
 ---
 
-## 2.6 Where this left the dispatch decision
+## 2.6 这把分发决策推到了哪里
 
-Before the native pipeline existed, the recommendation from the study was:
+在原生流水线出现之前，这项研究给出的建议是：
 
-- replace `make_nn_weight_nt` with the tiled transpose, **unconditionally** —
-  11–14×, bit-exact, ~20 lines, no memory cost, no new failure mode;
-- **do not** add the cache;
-- route dgrad to flydsl only for `avg_m ≥ 1536`, where it wins 24/24 with no
-  cache at all, and let Triton have the rest.
+- 用 tiled 转置替换 `make_nn_weight_nt`，**无条件** —— 11–14×、逐位一致、
+  约 20 行、零显存代价、零新增失败模式；
+- **不要**加缓存；
+- dgrad 只在 `avg_m ≥ 1536` 时路由给 flydsl —— 那里它在完全不用缓存的情况下
+  24/24 全胜 —— 其余交给 Triton。
 
-The threshold was fitted on 42 cells from four models on one part, with 1536
-interior to the sampled range 128–4096. **It should be re-measured, not
-extrapolated, for a new arch or a new tuning table.**
+这个阈值是在一颗芯片上、四个模型的 42 格数据上拟合的，而 1536 落在采样区间
+128–4096 的内部。**换 arch 或换调优表时应当重测，不能外推。**
 
-With the native pipeline, the transpose is gone and the first two points are
-moot. The third partly survives: flydsl's *GEMM* still loses to Triton on 4 of
-24 dgrad cells, all at small `avg_m`. That is unrelated to the transpose, it
-predates this work, and **the cause is still unknown** — see
-`docs/05-optimization-log.md` §"Disproven hypotheses".
+有了原生流水线之后，转置消失了，前两条随之作废。第三条部分成立：flydsl 的
+*GEMM* 在 24 个 dgrad 格子里仍然输给 Triton 4 个，全在小 `avg_m`。那与转置无关，
+早于本次工作，而且**原因至今未知** —— 见 `docs/05-optimization-log.md`
+§被证伪的假设。
