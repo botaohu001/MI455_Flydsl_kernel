@@ -1,140 +1,132 @@
-# `benchmarks/` — correctness harnesses and measurement drivers
+# `benchmarks/` —— 正确性 harness 与测量驱动
 
-Everything that produced a number in `docs/07-performance.md` or
-`docs/05-optimization-log.md`. Paths resolve relative to the repository root, so
-a clone works anywhere.
+`docs/07-performance.md` 和 `docs/05-optimization-log.md` 里每一个数字的来源。
+路径相对仓库根目录解析，clone 到任何位置都能跑。
 
-**Requires gfx1250 hardware.** See the repository `README.md` for the software
-stack.
+> 脚本本身与其注释保持英文。
+
+**需要 gfx1250 硬件。** 软件栈见仓库根目录的 `README.md`。
 
 ---
 
-## Correctness
+## 正确性
 
-### `check_full.py` — the full 48-row gate
+### `check_full.py` —— 48 行完整门
 
-Loads **both** the shipped kernel and `kernel/reference/` into one process, so
-"no regression" is a comparison between two implementations rather than each
-being re-checked against a reference they could drift from together.
+在一个进程里同时加载交付 kernel 和 `kernel/reference/`，所以"没有回归"是两个
+实现之间的比对，而不是各自对着一个可能一起漂移的参考复算。
 
 ```bash
 python benchmarks/check_full.py
 ```
 
-48 rows = 24 shapes × {balanced, imbalanced groups}. Asserts:
+48 行 = 24 个 shape × {均衡分组, 不均衡分组}。断言：
 
-- dgrad native vs hoisted calibre — **bitwise identical**, 48/48
-- fwd and wgrad vs the pre-change kernel — **bitwise identical**, 48/48 each
-- `rel_fro` against an **fp32** per-group reference judged host-side in float64
-  (never device fp64 — it was wrong 11 times in 12 on this part)
-- zero NaN/Inf, and that all 48 rows actually took the native path
+- dgrad 原生 vs hoist 口径 —— **逐位相同**，48/48
+- fwd 和 wgrad vs 改动前的 kernel —— 各 **逐位相同**，48/48
+- `rel_fro` 对 **fp32** 逐组参考，在 host 侧用 float64 判定
+  （绝不用 device fp64 —— 在这颗芯片上它 12 次错 11 次）
+- 零 NaN/Inf，且 48 行确实都走了原生路径
 
-It burns 3 calls and checks the 4th, per the first-call-corruption convention in
-`docs/06-pitfalls.md`. Expected output: `results/nn_pipeline/check_full.out`.
+它会 burn 3 次调用再验第 4 次，遵循 `docs/06-pitfalls.md` 里的首调用损坏约定。
+预期输出：`results/nn_pipeline/check_full.out`。
 
-### `check_flydsl_gg_correctness.py` — the wider correctness sweep
+### `check_flydsl_gg_correctness.py` —— 更宽的正确性扫描
 
-96 numerical points, `masked_k` with padded pools and poisoned dead rows, and a
-device-vs-CPU reference cross-check. `--masked-k` covers the production path
-that had **never been executed** before this work: padded pools where
-`valid % tile_k != 0`, dead rows poisoned with both finite `1e4` and `NaN`.
+96 个数值点、带 padded pool 与毒化死行的 `masked_k`、以及 device-vs-CPU 参考
+交叉核对。`--masked-k` 覆盖的是本次工作之前**从未被执行过**的生产路径：
+`valid % tile_k != 0` 的 padded pool，死行分别用 finite `1e4` 和 `NaN` 毒化。
 
 ---
 
-## Performance
+## 性能
 
-### `bench_matrix.py` — the three-section delivery matrix
+### `bench_matrix.py` —— 三段交付矩阵
 
-Produces the tables in `docs/07-performance.md` §7.1–7.4: fwd, dgrad and wgrad
-across 24 shapes, plus the **four-calibre** comparison (native / hoist /
-per-call fast transpose / Triton) measured in one process, interleaved point by
-point so clock drift lands on all four equally.
+产出 `docs/07-performance.md` §7.1–7.4 的表：24 个 shape 上的 fwd、dgrad、
+wgrad，外加**四口径**对比（native / hoist / per-call 快转置 / Triton），
+在一个进程里逐点交错测量，使时钟漂移对四者一视同仁。
 
 ```bash
 python benchmarks/bench_matrix.py --outdir results/nn_pipeline
 ```
 
-Median of 5 samples, each a launch loop filling ~40 ms, `cv` reported per point.
+5 个样本取中位数，每个样本是一个填满约 40 ms 的 launch 循环，逐点报 `cv`。
 
-### `bench_flydsl_gg_matrix.py` — the target-matrix driver
+### `bench_flydsl_gg_matrix.py` —— 目标矩阵驱动
 
-The general driver, with a Triton / hipBLASLt / FlyDSL backend switch. Reuses
-Primus-Turbo's own timing path rather than a home-made timer, and measures the
-three operators **separately** — the project's own benchmark script lumps
-dgrad and wgrad into one backward number, which is why this exists.
+通用驱动，带 Triton / hipBLASLt / FlyDSL 的 backend 开关。复用 Primus-Turbo
+自己的计时路径而不是自造计时轮子，并且**分别**测量三个算子 —— 项目自带的
+benchmark 脚本把 dgrad 和 wgrad 合成一个反向数字，这正是本脚本存在的原因。
 
-Two modes: `--registry` goes through the Primus-Turbo backend registry;
-`--standalone` calls the arch dispatch directly and needs no importable
-`primus_turbo.pytorch`. All measurements in this repository used `--standalone`.
+两种模式：`--registry` 走 Primus-Turbo 的 backend registry；`--standalone`
+直接调 arch 分发，不需要 `primus_turbo.pytorch` 可 import。本仓库所有测量都用
+`--standalone`。
 
-`gg_matrix_defs.py` holds the shape table, split out so the correctness harness
-shares it.
+`gg_matrix_defs.py` 放 shape 表，单独拆出来供正确性 harness 复用。
 
-### `bench_quick.py` — a fast native-vs-hoist check
+### `bench_quick.py` —— 快速的 native-vs-hoist 检查
 
-Six shapes, enough to see whether a change moved the ratio. Use during
-iteration; use `bench_matrix.py` for anything you intend to quote.
+六个 shape，足以看出一次改动有没有移动那个比值。迭代时用它；要引用的数字用
+`bench_matrix.py`。
 
-### `dump_stats.py` — answer perf questions from the assembly
+### `dump_stats.py` —— 用汇编回答性能问题
 
-Compiles one shape both ways and diffs the generated code: VGPR/SGPR counts,
-spills, scratch, LDS bytes, and the instruction mix.
+把一个 shape 用两条路径分别编译出来并 diff 生成的代码：VGPR/SGPR 计数、spill、
+scratch、LDS 字节数、指令组成。
 
 ```bash
 FLYDSL_DUMP_IR=1 FLYDSL_DEBUG_DUMP_ASM=1 FLYDSL_DUMP_DIR=asm \
   python benchmarks/dump_stats.py
 ```
 
-This is what excluded register pressure and occupancy as explanations for the
-native pipeline's 2.1 %: VGPR 790 vs 791, zero spill on both, **77 fewer
-instructions** on the native path. Also what populates `asm/`.
+正是它排除了寄存器压力和 occupancy 对原生流水线那 2.1% 的解释：VGPR 790 vs
+791、两侧零 spill、原生路径**少发 77 条指令**。`asm/` 也由它填充。
 
 ---
 
-## Tuning sweeps
+## 调优 sweep
 
-### `ab_variants.py` — the LDS pad sweep, worth 6.5 %
+### `ab_variants.py` —— LDS pad sweep，值 6.5%
 
-Sweeps the transposed B stage's LDS pad from 16 to 160 in steps of 16, on six
-shapes, always against NT on an identical tile. Found the bimodal split on
-`LDS_B_ROW % 64 == 32`, which is the entire difference between "the native NN
-pipeline costs 7 %" and "it costs 1 %".
+把转置 B stage 的 LDS pad 从 16 扫到 160、步长 16，六个 shape，始终对着同一个
+tile 上的 NT。发现了以 `LDS_B_ROW % 64 == 32` 为判别的双峰分布，而这是"原生
+NN 流水线贵 7%"与"贵 1%"之间的全部差距。
 
-**Mechanism still unexplained** — a 32-bank model predicts the exact opposite.
-Re-run this rather than extrapolating if you introduce a new `tile_n`.
+**机制仍未解释** —— 一个 32 bank 的模型预测正好相反。引入新的 `tile_n` 时要
+重跑它，不要外推。
 
-### `sweep_narrow.py` — the `tile_n=128` + `tile_k=64` rule
+### `sweep_narrow.py` —— `tile_n=128` + `tile_k=64` 规则
 
-54 synthetic cells whose reduction length forces `tile_k=64`. Established
-geomean 0.896 at `tile_n=128` against 1.103 at 256, and that `tile_n=128` with
-`tile_k=128` is fine — so it is the combination that is bad, not the tile width.
+54 个合成 cell，其归约长度强制 `tile_k=64`。确立了 `tile_n=128` 几何均值
+0.896 对 256 的 1.103，以及 `tile_n=128` 配 `tile_k=128` 没问题 —— 所以坏的是
+组合，不是 tile 宽度。
 
-### `probe_outlier.py` — the worst native-vs-hoist point
+### `probe_outlier.py` —— 原生 vs hoist 最差的那个点
 
-Tile scan for gpt-oss fc2 dgrad @ avg_m=2048 (ratio 0.872). Identified the cause
-as the unavailable `tile_n=192` tile rather than the transpose read.
+对 gpt-oss fc2 dgrad @ avg_m=2048（比值 0.872）做 tile 扫描。把原因定位到
+`tile_n=192` 这个 tile 不可用，而不是转置读。
 
 ---
 
-## `dgrad_study/` — the decision study that preceded the pipeline
+## `dgrad_study/` —— 流水线之前的决策研究
 
-Ran before the native NN pipeline existed, to answer "given that dgrad needs a
-transposed weight, what is the least bad way to get one?" Its conclusions fed
-`docs/02-dgrad-problem.md`, and two of them still stand on their own.
+在原生 NN 流水线出现之前进行，回答"既然 dgrad 需要一份转置权重，那么代价最小
+的拿法是什么？" 它的结论喂给了 `docs/02-dgrad-problem.md`，其中两条至今独立
+成立。
 
-| script | what it established |
+| 脚本 | 它确立了什么 |
 |---|---|
-| **`bench_transpose.py`** | **The key experiment.** `make_nn_weight_nt` runs at 1.07–1.39 TB/s; a ~20-line tiled Triton transpose does the same shapes at **15.5–17.1 TB/s**, bit-exact — **11.0×–14.9× faster**, and faster than torch's *non*-transposing copy. |
-| `bench_dgrad.py` | per-shape `t_gemm` / `t_transpose` / `t_nocache` / Triton, and N\* |
-| `part2_memory.py` | the cache costs **+141 GiB / +152 GiB** on the two large models |
-| `part3_cache.py` | the cache prototype — 38 assertions pass, and **`AdamW(fused=True)` does not bump `param._version`**, giving 9.99e-02 silent error |
-| `part4_algebra.py` | the per-group variable-K reformulation: bitwise correct, **1.5×–10.5× slower** |
-| `wave_quant.py` | **disproved** wave quantisation as the small-`avg_m` explanation (Spearman −0.55, wrong sign) |
-| `common.py` | shared harness: interleaved timing, `sclk` sampling, the shape table |
+| **`bench_transpose.py`** | **关键实验。** `make_nn_weight_nt` 跑 1.07–1.39 TB/s；约 20 行的 tiled Triton 转置在同样的 shape 上跑 **15.5–17.1 TB/s**，逐位一致 —— **快 11.0×–14.9×**，而且比 torch 那个*不*转置的拷贝还快。 |
+| `bench_dgrad.py` | 逐 shape 的 `t_gemm` / `t_transpose` / `t_nocache` / Triton，以及 N\* |
+| `part2_memory.py` | 缓存在两个大模型上要花 **+141 GiB / +152 GiB** |
+| `part3_cache.py` | 缓存原型 —— 38 条断言通过，以及 **`AdamW(fused=True)` 不 bump `param._version`**，导致 9.99e-02 的静默错误 |
+| `part4_algebra.py` | 逐组 variable-K 的重排：逐位正确，**慢 1.5×–10.5×** |
+| `wave_quant.py` | **证伪**了 wave quantization 作为小 `avg_m` 失分的解释（Spearman −0.55，符号反了） |
+| `common.py` | 共享 harness：交错计时、`sclk` 采样、shape 表 |
 
-`analyze.py`, `decision.py`, `summarize.py` turn the raw JSON in
-`results/dgrad_study/` into the tables quoted in the docs.
+`analyze.py`、`decision.py`、`summarize.py` 把 `results/dgrad_study/` 里的
+原始 JSON 变成文档里引用的那些表。
 
-> Read `bench_transpose.py` even if you never touch this part. It is a compact
-> demonstration of checking whether an operation is slow or its *implementation*
-> is, before designing around the cost.
+> 即使你永远不碰这颗芯片，也值得读一下 `bench_transpose.py`。它是一个紧凑的
+> 示范：在围绕某个代价做设计之前，先确认是这个操作慢，还是它的*实现*慢。

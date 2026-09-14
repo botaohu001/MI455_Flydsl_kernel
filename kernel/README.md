@@ -1,12 +1,14 @@
-# `kernel/` — the shippable implementation
+# `kernel/` —— 可直接用的实现
 
-| file | lines | what |
+| 文件 | 行数 | 内容 |
 |---|--:|---|
-| `grouped_gemm_bf16_kernel_mi455.py` | 2750 | **The kernel.** All three operators for gfx1250 / MI455X, including the native NN (dgrad) pipeline. |
-| `grouped_gemm_bf16_dispatch.py` | 161 | Arch dispatch (`gfx950` / `gfx1250`) with lazy per-arch import. |
-| `reference/grouped_gemm_bf16_kernel_gfx1250.py` | 2290 | The revision **before** the native NN pipeline. Kept byte-identical for diffing. |
+| `grouped_gemm_bf16_kernel_mi455.py` | 2750 | **kernel 本体。** gfx1250 / MI455X 的全部三个算子，含原生 NN（dgrad）流水线。 |
+| `grouped_gemm_bf16_dispatch.py` | 161 | arch 分发（`gfx950` / `gfx1250`），逐 arch 懒加载。 |
+| `reference/grouped_gemm_bf16_kernel_gfx1250.py` | 2290 | 原生 NN 流水线**之前**的版本。逐字节保留，供 diff。 |
 
-## The three entry points
+> 代码与注释保持英文：这些文件是要进 Primus-Turbo 上游 PR 的。
+
+## 三个入口
 
 ```python
 grouped_gemm_bf16_nt_flydsl_kernel(a, b, group_offs)          # fwd:   out[rows] = a[rows] @ b[g].T
@@ -15,41 +17,39 @@ grouped_gemm_bf16_variable_k_flydsl_kernel(a, b, group_k_offsets, masked_k=None)
                                                               # wgrad: out[g] = a[rows_g].T @ b[rows_g]
 ```
 
-`a` is `[M_total, K]` with expert row-runs concatenated along `M`; `group_offs` is
-`[G+1]` int64. The NN entry takes `b` as `[G, K, N]` and **reads it in place** —
-there is no transposed weight copy anywhere in the default path.
+`a` 是 `[M_total, K]`，专家的 row-run 沿 `M` 拼接；`group_offs` 是 `[G+1]`
+int64。NN 入口把 `b` 当作 `[G, K, N]` 并**原样读取** —— 默认路径上任何地方都
+没有转置权重副本。
 
-## What changed from `reference/` to the shipped kernel
+## 从 `reference/` 到交付 kernel 改了什么
 
-One switch, `b_lds_transpose`, on the existing NT launcher. Not a third kernel.
+在既有的 NT launcher 上加一个开关 `b_lds_transpose`。不是第三个 kernel。
 
 ```
 $ diff <(git show <first-commit>:kernel/reference/...) kernel/grouped_gemm_bf16_kernel_mi455.py
 499 insertions, 52 deletions
 ```
 
-Of the 321 non-comment lines added, **125 are the device-side tile body**, all of
-them inside `if const_expr(b_lds_transpose):`. The remaining 196 are host side:
-the native launch path, `_pick_config_nn`, `_nn_b_pad` and
-`nn_native_unsupported_reason`. The A operand, the WMMA calls, the epilogue and
-the grouped control logic are **unchanged, zero lines**.
+新增的 321 行非注释代码里，**125 行是 device 侧的 tile body**，全部在
+`if const_expr(b_lds_transpose):` 之内。其余 196 行在 host 侧：原生 launch
+路径、`_pick_config_nn`、`_nn_b_pad` 和 `nn_native_unsupported_reason`。
+A 操作数、WMMA 调用、epilogue 和 grouped 控制逻辑**一行未动**。
 
-`docs/04-native-nn-pipeline.md` walks the change; `docs/02-dgrad-problem.md`
-explains why it was needed at all.
+`docs/04-native-nn-pipeline.md` 讲这次改动；`docs/02-dgrad-problem.md` 讲它
+为什么必要。
 
-## Dropping this into Primus-Turbo
+## 落进 Primus-Turbo
 
-Both files go to `primus_turbo/flydsl/grouped_gemm/`, next to the gfx950 kernel.
-`__init__.py` stays a bare licence header — putting dispatch there would make
-every importer of a sibling kernel pay for the arch probe.
+两个文件都放到 `primus_turbo/flydsl/grouped_gemm/`，与 gfx950 kernel 同级。
+`__init__.py` 保持纯 licence header —— 把分发放进去会让同目录任何一个 kernel
+的 importer 都被迫付一次 arch 探测的代价。
 
-Then in `primus_turbo/pytorch/kernels/grouped_gemm/grouped_gemm_impl.py`, widening
-the arch gate from `is_gfx950()` is **not sufficient on its own**. Five things
-raise instead of falling back to Triton; `docs/06-pitfalls.md` §"Integration
-gates" lists them with the negative `can_handle` conditions each one needs.
+然后在 `primus_turbo/pytorch/kernels/grouped_gemm/grouped_gemm_impl.py` 里，
+**只把 arch gate 从 `is_gfx950()` 放宽是不够的**。有五处会 raise 而不是回退
+Triton；`docs/06-pitfalls.md` §6.2 列出了它们，以及每一处需要补的负向
+`can_handle` 条件。
 
-## Licence
+## 许可证
 
-Apache-2.0. The header block at the top of each file, including the FlyDSL and
-Primus-Turbo provenance lines, is preserved verbatim and must stay. See `NOTICE`
-at the repository root for the full chain.
+Apache-2.0。每个文件头部的声明块（含 FlyDSL 与 Primus-Turbo 的 provenance
+行）**逐字保留，必须保持原样**。完整链条见仓库根目录的 `NOTICE`。
