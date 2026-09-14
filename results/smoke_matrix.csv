@@ -1,0 +1,4 @@
+TestID,Platform,GPU,Backend,Model,Layer,Direction,G,EP,Seq,Batch,AvgM,TotalM,N,K,Dtype,Check,Time (ms),TFLOPS,MFU (%)
+1,ROCm,Graphics,TRITON,gpt-oss-20b,fc1,fwd,4,8,4096,1,512,2048,5760,2880,bf16,PASS,0.0762,892.03,17.72
+2,ROCm,Graphics,TRITON,gpt-oss-20b,fc1,dgrad,4,8,4096,1,512,2048,5760,2880,bf16,PASS,0.1222,555.97,11.05
+3,ROCm,Graphics,TRITON,gpt-oss-20b,fc1,wgrad,4,8,4096,1,512,2048,5760,2880,bf16,PASS,0.1435,473.64,9.41

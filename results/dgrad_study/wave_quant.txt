@@ -1,0 +1,36 @@
+          Model Layer  avg_m     M    K    tile  tiles  waves  wave_eff  tf_gemm  tf_triton  speedup
+    gpt-oss-20b   fc1    512  2048 2880 128x128    368  1.438     0.719   915.55     563.89   1.6236
+    gpt-oss-20b   fc2    512  2048 2880 128x128    368  1.438     0.719   778.36     526.81   1.4775
+    gpt-oss-20b   fc1   1024  4096 2880 256x256    192  0.750     0.750  1405.22    1074.54   1.3077
+    gpt-oss-20b   fc2   1024  4096 2880 256x256    192  0.750     0.750  1164.17     989.34   1.1767
+    gpt-oss-20b   fc1   2048  8192 2880 256x256    384  1.500     0.750  1562.36    1096.72   1.4246
+    deepseek-v3   fc1    256  8192 7168 256x256    896  3.500     0.875  1098.24    1190.09   0.9228
+    gpt-oss-20b   fc2   2048  8192 2880 128x192    960  3.750     0.938  1458.68     990.56   1.4726
+  qwen3-30b-a3b   fc1    512  8192 2048 256x256    256  1.000     1.000  1097.42    1337.42   0.8206
+  qwen3-30b-a3b   fc1   1024 16384 2048 256x256    512  2.000     1.000  1455.59    1404.35   1.0365
+  qwen3-30b-a3b   fc2   1024 16384 2048 256x256    512  2.000     1.000  1281.66    1250.04   1.0253
+  qwen3-30b-a3b   fc1   2048 32768 2048 256x256   1024  4.000     1.000  1739.22    1425.48   1.2201
+  qwen3-30b-a3b   fc2   2048 32768 2048 256x256   1024  4.000     1.000  1585.98    1263.98   1.2548
+qwen3-235b-a22b   fc1    512  8192 4096 256x256    512  2.000     1.000  1442.17    1451.18   0.9938
+qwen3-235b-a22b   fc2    512  8192 4096 256x256    512  2.000     1.000  1370.24    1369.32   1.0007
+qwen3-235b-a22b   fc1   1024 16384 4096 256x256   1024  4.000     1.000  1732.26    1494.43   1.1591
+  qwen3-30b-a3b   fc2    512  8192 2048 256x256    256  1.000     1.000   919.19    1198.45   0.7670
+qwen3-235b-a22b   fc2   1024 16384 4096 256x256   1024  4.000     1.000  1657.33    1412.33   1.1735
+qwen3-235b-a22b   fc1   2048 32768 4096 256x256   2048  8.000     1.000  1960.69    1506.99   1.3011
+    deepseek-v3   fc1    128  4096 7168 128x128   1792  7.000     1.000   811.74     611.36   1.3278
+qwen3-235b-a22b   fc2   2048 32768 4096 256x256   2048  8.000     1.000  1881.87    1423.01   1.3225
+    deepseek-v3   fc2    128  4096 2048 128x128    512  2.000     1.000   749.31     686.23   1.0919
+    deepseek-v3   fc2    256  8192 2048 256x256    256  1.000     1.000  1082.93    1330.17   0.8141
+    deepseek-v3   fc1    512 16384 7168 256x256   1792  7.000     1.000  1391.42    1359.08   1.0238
+    deepseek-v3   fc2    512 16384 2048 256x256    512  2.000     1.000  1421.60    1406.76   1.0106
+
+Spearman(wave_eff, speedup) = -0.548
+Pearson (wave_eff, speedup) = -0.572
+
+losing cells (5): wave_eff 0.875-1.000, waves 1.00-3.50
+winning cells (19): wave_eff 0.719-1.000, waves 0.75-8.00
+separable by a wave_eff threshold alone: False
+  rule 'use flydsl iff wave_eff >= 0.55': 79.2% of 24 cells correct (5 false positives, 0 false negatives)
+  rule 'use flydsl iff wave_eff >= 0.6': 79.2% of 24 cells correct (5 false positives, 0 false negatives)
+  rule 'use flydsl iff wave_eff >= 0.65': 79.2% of 24 cells correct (5 false positives, 0 false negatives)
+  rule 'use flydsl iff wave_eff >= 0.7': 79.2% of 24 cells correct (5 false positives, 0 false negatives)

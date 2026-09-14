@@ -1,0 +1,159 @@
+{
+ "hbm_bytes": 463856467968,
+ "layers": {
+  "gpt-oss-20b": {
+   "total": 24,
+   "moe": 24,
+   "src": "model card: 24 layers, every layer MoE"
+  },
+  "qwen3-30b-a3b": {
+   "total": 48,
+   "moe": 48,
+   "src": "config.json num_hidden_layers=48, decoder_sparse_step=1"
+  },
+  "qwen3-235b-a22b": {
+   "total": 94,
+   "moe": 94,
+   "src": "config.json num_hidden_layers=94, decoder_sparse_step=1"
+  },
+  "deepseek-v3": {
+   "total": 61,
+   "moe": 58,
+   "src": "config num_hidden_layers=61, first_k_dense_replace=3"
+  }
+ },
+ "rows": [
+  {
+   "Model": "gpt-oss-20b",
+   "Layer": "fc1",
+   "G": 4,
+   "N": 5760,
+   "K": 2880,
+   "weight_bytes": 132710400,
+   "weight_MiB": 126.56
+  },
+  {
+   "Model": "gpt-oss-20b",
+   "Layer": "fc2",
+   "G": 4,
+   "N": 2880,
+   "K": 2880,
+   "weight_bytes": 66355200,
+   "weight_MiB": 63.28
+  },
+  {
+   "Model": "gpt-oss-20b",
+   "Layer": "BOTH",
+   "G": 4,
+   "N": 0,
+   "K": 0,
+   "weight_bytes": 199065600,
+   "weight_MiB": 189.84,
+   "moe_layers": 24,
+   "total_layers": 24,
+   "model_weight_GiB": 4.45,
+   "transposed_copy_GiB": 4.45,
+   "pct_of_HBM": 1.03,
+   "alloc_check_MiB": 192.0
+  },
+  {
+   "Model": "qwen3-30b-a3b",
+   "Layer": "fc1",
+   "G": 16,
+   "N": 4096,
+   "K": 2048,
+   "weight_bytes": 268435456,
+   "weight_MiB": 256.0
+  },
+  {
+   "Model": "qwen3-30b-a3b",
+   "Layer": "fc2",
+   "G": 16,
+   "N": 2048,
+   "K": 2048,
+   "weight_bytes": 134217728,
+   "weight_MiB": 128.0
+  },
+  {
+   "Model": "qwen3-30b-a3b",
+   "Layer": "BOTH",
+   "G": 16,
+   "N": 0,
+   "K": 0,
+   "weight_bytes": 402653184,
+   "weight_MiB": 384.0,
+   "moe_layers": 48,
+   "total_layers": 48,
+   "model_weight_GiB": 18.0,
+   "transposed_copy_GiB": 18.0,
+   "pct_of_HBM": 4.17,
+   "alloc_check_MiB": 384.0
+  },
+  {
+   "Model": "qwen3-235b-a22b",
+   "Layer": "fc1",
+   "G": 16,
+   "N": 8192,
+   "K": 4096,
+   "weight_bytes": 1073741824,
+   "weight_MiB": 1024.0
+  },
+  {
+   "Model": "qwen3-235b-a22b",
+   "Layer": "fc2",
+   "G": 16,
+   "N": 4096,
+   "K": 4096,
+   "weight_bytes": 536870912,
+   "weight_MiB": 512.0
+  },
+  {
+   "Model": "qwen3-235b-a22b",
+   "Layer": "BOTH",
+   "G": 16,
+   "N": 0,
+   "K": 0,
+   "weight_bytes": 1610612736,
+   "weight_MiB": 1536.0,
+   "moe_layers": 94,
+   "total_layers": 94,
+   "model_weight_GiB": 141.0,
+   "transposed_copy_GiB": 141.0,
+   "pct_of_HBM": 32.64,
+   "alloc_check_MiB": 1536.0
+  },
+  {
+   "Model": "deepseek-v3",
+   "Layer": "fc1",
+   "G": 32,
+   "N": 4096,
+   "K": 7168,
+   "weight_bytes": 1879048192,
+   "weight_MiB": 1792.0
+  },
+  {
+   "Model": "deepseek-v3",
+   "Layer": "fc2",
+   "G": 32,
+   "N": 7168,
+   "K": 2048,
+   "weight_bytes": 939524096,
+   "weight_MiB": 896.0
+  },
+  {
+   "Model": "deepseek-v3",
+   "Layer": "BOTH",
+   "G": 32,
+   "N": 0,
+   "K": 0,
+   "weight_bytes": 2818572288,
+   "weight_MiB": 2688.0,
+   "moe_layers": 58,
+   "total_layers": 61,
+   "model_weight_GiB": 152.25,
+   "transposed_copy_GiB": 152.25,
+   "pct_of_HBM": 35.24,
+   "alloc_check_MiB": 2688.0
+  }
+ ]
+}

@@ -1,0 +1,19 @@
+device: gfx1250  kernel: <repo>/gg_gfx1250_nn.py
+
+-- stage B: single expert, everything divides --
+  G1 tiny                            G=1   M=256    N=256   K=256   BM128/BN128/BK128/mw2/nw2/nb2      NATIVE   call1=1.659e-03 call4=1.659e-03 floor=1.659e-03 hoist=1.659e-03 | vs hoist: max|d|=0.000e+00 bitsame=100.00% nan=0  OK
+  G1 square                          G=1   M=512    N=1024  K=1024  BM128/BN128/BK128/mw2/nw2/nb2      NATIVE   call1=1.659e-03 call4=1.659e-03 floor=1.659e-03 hoist=1.659e-03 | vs hoist: max|d|=0.000e+00 bitsame=100.00% nan=0  OK
+  G1 wide-K                          G=1   M=256    N=2048  K=4096  BM128/BN128/BK128/mw2/nw2/nb2      NATIVE   call1=1.662e-03 call4=1.662e-03 floor=1.662e-03 hoist=1.662e-03 | vs hoist: max|d|=0.000e+00 bitsame=100.00% nan=0  OK
+
+-- stage C: grouped, ragged N, short experts --
+  gpt-oss fc1 dgrad                  G=4   M=2048   N=2880  K=5760  BM128/BN128/BK128/mw2/nw2/nb2      NATIVE   call1=1.661e-03 call4=1.661e-03 floor=1.661e-03 hoist=1.661e-03 | vs hoist: max|d|=0.000e+00 bitsame=100.00% nan=0  OK
+  gpt-oss fc2 dgrad (N==K)           G=4   M=2048   N=2880  K=2880  BM128/BN128/BK64/mw2/nw2/nb3       NATIVE   call1=1.657e-03 call4=1.657e-03 floor=1.657e-03 hoist=1.657e-03 | vs hoist: max|d|=0.000e+00 bitsame=100.00% nan=0  OK
+  deepseek fc2 dgrad small-m         G=8   M=1024   N=2048  K=7168  BM128/BN128/BK128/mw2/nw2/nb2      NATIVE   call1=1.657e-03 call4=1.657e-03 floor=1.657e-03 hoist=1.657e-03 | vs hoist: max|d|=0.000e+00 bitsame=100.00% nan=0  OK
+  deepseek fc1 dgrad                 G=4   M=1024   N=7168  K=4096  BM128/BN128/BK128/mw2/nw2/nb2      NATIVE   call1=1.661e-03 call4=1.661e-03 floor=1.661e-03 hoist=1.661e-03 | vs hoist: max|d|=0.000e+00 bitsame=100.00% nan=0  OK
+  qwen30b fc1 dgrad                  G=4   M=2048   N=2048  K=4096  BM128/BN128/BK128/mw2/nw2/nb2      NATIVE   call1=1.662e-03 call4=1.662e-03 floor=1.662e-03 hoist=1.662e-03 | vs hoist: max|d|=0.000e+00 bitsame=100.00% nan=0  OK
+
+-- stage C: imbalanced experts (incl. empty and tiny) --
+  imbalanced +empty                  G=4   M=2120   N=2880  K=2880  BM256/BN256/BK64/mw2/nw2/nb3       NATIVE   call1=1.656e-03 call4=1.656e-03 floor=1.656e-03 hoist=1.656e-03 | vs hoist: max|d|=0.000e+00 bitsame=100.00% nan=0  OK
+  imbalanced wide spread             G=6   M=6306   N=2048  K=2048  BM256/BN256/BK128/mw2/nw2/nb2      NATIVE   call1=1.656e-03 call4=1.656e-03 floor=1.656e-03 hoist=1.656e-03 | vs hoist: max|d|=0.000e+00 bitsame=100.00% nan=0  OK
+
+RESULT: ALL OK

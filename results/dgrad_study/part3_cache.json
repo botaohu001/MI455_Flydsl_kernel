@@ -1,0 +1,582 @@
+{
+ "tests_torch": [
+  {
+   "test": "cache hit is the same object as the miss that filled it",
+   "pass_": true,
+   "note": ""
+  },
+  {
+   "test": "cached transpose is bitwise equal to a fresh hoist",
+   "pass_": true,
+   "note": ""
+  },
+  {
+   "test": "cached transpose is bitwise equal to upstream make_nn_weight_nt",
+   "pass_": true,
+   "note": ""
+  },
+  {
+   "test": "dgrad through the cache is bitwise equal to dgrad through a hoist",
+   "pass_": true,
+   "note": ""
+  },
+  {
+   "test": "hit/miss accounting",
+   "pass_": true,
+   "note": "{'entries': 1, 'hits': 2, 'misses': 1, 'invalidations': 0, 'evictions': 0}"
+  },
+  {
+   "test": "in-place add_ bumps _version",
+   "pass_": true,
+   "note": "0 -> 1"
+  },
+  {
+   "test": "cache missed after the weight changed",
+   "pass_": true,
+   "note": ""
+  },
+  {
+   "test": "refreshed entry matches the new weight",
+   "pass_": true,
+   "note": ""
+  },
+  {
+   "test": "dgrad after invalidation is bitwise correct",
+   "pass_": true,
+   "note": ""
+  },
+  {
+   "test": "a cache that ignored _version would have been wrong here",
+   "pass_": true,
+   "note": "the stale buffer really does differ from the correct one"
+  },
+  {
+   "test": "three live weights each get their own entry",
+   "pass_": true,
+   "note": ""
+  },
+  {
+   "test": "their transposes are pairwise different",
+   "pass_": true,
+   "note": ""
+  },
+  {
+   "test": "entry is evicted when the weight is freed",
+   "pass_": true,
+   "note": "4 -> 5 -> 4"
+  },
+  {
+   "test": "data_ptr changed after set_()",
+   "pass_": true,
+   "note": ""
+  },
+  {
+   "test": "set_() to new storage invalidates the entry",
+   "pass_": true,
+   "note": ""
+  },
+  {
+   "test": "entry after set_() is correct",
+   "pass_": true,
+   "note": ""
+  },
+  {
+   "test": "fused AdamW changed the parameter",
+   "pass_": true,
+   "note": "parameter values did change"
+  },
+  {
+   "test": "HAZARD: _version-keyed cache serves a stale transpose after fused AdamW",
+   "pass_": true,
+   "note": "this is a FAIL for the cache design, reported as a finding"
+  },
+  {
+   "test": "...and the resulting dgrad is numerically wrong",
+   "pass_": true,
+   "note": "rel diff 9.994e-02"
+  }
+ ],
+ "tests_fast": [
+  {
+   "test": "cache hit is the same object as the miss that filled it",
+   "pass_": true,
+   "note": ""
+  },
+  {
+   "test": "cached transpose is bitwise equal to a fresh hoist",
+   "pass_": true,
+   "note": ""
+  },
+  {
+   "test": "cached transpose is bitwise equal to upstream make_nn_weight_nt",
+   "pass_": true,
+   "note": ""
+  },
+  {
+   "test": "dgrad through the cache is bitwise equal to dgrad through a hoist",
+   "pass_": true,
+   "note": ""
+  },
+  {
+   "test": "hit/miss accounting",
+   "pass_": true,
+   "note": "{'entries': 1, 'hits': 2, 'misses': 1, 'invalidations': 0, 'evictions': 0}"
+  },
+  {
+   "test": "in-place add_ bumps _version",
+   "pass_": true,
+   "note": "0 -> 1"
+  },
+  {
+   "test": "cache missed after the weight changed",
+   "pass_": true,
+   "note": ""
+  },
+  {
+   "test": "refreshed entry matches the new weight",
+   "pass_": true,
+   "note": ""
+  },
+  {
+   "test": "dgrad after invalidation is bitwise correct",
+   "pass_": true,
+   "note": ""
+  },
+  {
+   "test": "a cache that ignored _version would have been wrong here",
+   "pass_": true,
+   "note": "the stale buffer really does differ from the correct one"
+  },
+  {
+   "test": "three live weights each get their own entry",
+   "pass_": true,
+   "note": ""
+  },
+  {
+   "test": "their transposes are pairwise different",
+   "pass_": true,
+   "note": ""
+  },
+  {
+   "test": "entry is evicted when the weight is freed",
+   "pass_": true,
+   "note": "4 -> 5 -> 4"
+  },
+  {
+   "test": "data_ptr changed after set_()",
+   "pass_": true,
+   "note": ""
+  },
+  {
+   "test": "set_() to new storage invalidates the entry",
+   "pass_": true,
+   "note": ""
+  },
+  {
+   "test": "entry after set_() is correct",
+   "pass_": true,
+   "note": ""
+  },
+  {
+   "test": "fused AdamW changed the parameter",
+   "pass_": true,
+   "note": "parameter values did change"
+  },
+  {
+   "test": "HAZARD: _version-keyed cache serves a stale transpose after fused AdamW",
+   "pass_": true,
+   "note": "this is a FAIL for the cache design, reported as a finding"
+  },
+  {
+   "test": "...and the resulting dgrad is numerically wrong",
+   "pass_": true,
+   "note": "rel diff 9.994e-02"
+  }
+ ],
+ "optimizer_probe": [
+  {
+   "optimizer": "SGD",
+   "v0": 0,
+   "v1": 1,
+   "bumped": true,
+   "values_changed": true,
+   "ptr_moved": false,
+   "verdict": "safe"
+  },
+  {
+   "optimizer": "AdamW default",
+   "v0": 0,
+   "v1": 2,
+   "bumped": true,
+   "values_changed": true,
+   "ptr_moved": false,
+   "verdict": "safe"
+  },
+  {
+   "optimizer": "AdamW foreach=True",
+   "v0": 0,
+   "v1": 2,
+   "bumped": true,
+   "values_changed": true,
+   "ptr_moved": false,
+   "verdict": "safe"
+  },
+  {
+   "optimizer": "AdamW foreach=False",
+   "v0": 0,
+   "v1": 2,
+   "bumped": true,
+   "values_changed": true,
+   "ptr_moved": false,
+   "verdict": "safe"
+  },
+  {
+   "optimizer": "AdamW fused=True",
+   "v0": 0,
+   "v1": 0,
+   "bumped": false,
+   "values_changed": true,
+   "ptr_moved": false,
+   "verdict": "UNSAFE"
+  },
+  {
+   "optimizer": "Adam capturable",
+   "v0": 0,
+   "v1": 1,
+   "bumped": true,
+   "values_changed": true,
+   "ptr_moved": false,
+   "verdict": "safe"
+  },
+  {
+   "optimizer": ".data.copy_()",
+   "v0": 0,
+   "v1": 0,
+   "bumped": false,
+   "values_changed": true,
+   "verdict": "UNSAFE"
+  },
+  {
+   "optimizer": ".data.add_()",
+   "v0": 0,
+   "v1": 0,
+   "bumped": false,
+   "values_changed": true,
+   "verdict": "UNSAFE"
+  },
+  {
+   "optimizer": "no_grad p.copy_()",
+   "v0": 0,
+   "v1": 1,
+   "bumped": true,
+   "values_changed": true,
+   "verdict": "safe"
+  },
+  {
+   "optimizer": "no_grad p.add_()",
+   "v0": 0,
+   "v1": 1,
+   "bumped": true,
+   "values_changed": true,
+   "verdict": "safe"
+  },
+  {
+   "optimizer": "p.detach().copy_()",
+   "v0": 0,
+   "v1": 1,
+   "bumped": true,
+   "values_changed": true,
+   "verdict": "safe"
+  }
+ ],
+ "timing": [
+  {
+   "Model": "gpt-oss-20b",
+   "Layer": "fc1",
+   "G": 4,
+   "avg_m": 512,
+   "N": 5760,
+   "K": 2880,
+   "accum": 1,
+   "cache_torch_tr_ms_per_dgrad": 0.31465,
+   "cache_fast_tr_ms_per_dgrad": 0.10389,
+   "nocache_torch_tr_ms_per_dgrad": 0.31479,
+   "nocache_fast_tr_ms_per_dgrad": 0.11375,
+   "triton_ms_per_dgrad": 0.12482,
+   "cache_torch_stats": "{'entries': 1, 'hits': 0, 'misses': 407, 'invalidations': 406, 'evictions': 0}",
+   "cache_fast_stats": "{'entries': 1, 'hits': 0, 'misses': 407, 'invalidations': 406, 'evictions': 0}",
+   "sclk_min": 2257.0,
+   "sclk_max": 2274.9
+  },
+  {
+   "Model": "gpt-oss-20b",
+   "Layer": "fc1",
+   "G": 4,
+   "avg_m": 512,
+   "N": 5760,
+   "K": 2880,
+   "accum": 2,
+   "cache_torch_tr_ms_per_dgrad": 0.19441,
+   "cache_fast_tr_ms_per_dgrad": 0.08913,
+   "nocache_torch_tr_ms_per_dgrad": 0.31372,
+   "nocache_fast_tr_ms_per_dgrad": 0.11196,
+   "triton_ms_per_dgrad": 0.1226,
+   "cache_torch_stats": "{'entries': 1, 'hits': 407, 'misses': 407, 'invalidations': 406, 'evictions': 0}",
+   "cache_fast_stats": "{'entries': 1, 'hits': 407, 'misses': 407, 'invalidations': 406, 'evictions': 0}",
+   "sclk_min": 2232.4,
+   "sclk_max": 2236.6
+  },
+  {
+   "Model": "gpt-oss-20b",
+   "Layer": "fc1",
+   "G": 4,
+   "avg_m": 512,
+   "N": 5760,
+   "K": 2880,
+   "accum": 4,
+   "cache_torch_tr_ms_per_dgrad": 0.13444,
+   "cache_fast_tr_ms_per_dgrad": 0.08146,
+   "nocache_torch_tr_ms_per_dgrad": 0.31214,
+   "nocache_fast_tr_ms_per_dgrad": 0.11039,
+   "triton_ms_per_dgrad": 0.12096,
+   "cache_torch_stats": "{'entries': 1, 'hits': 1221, 'misses': 407, 'invalidations': 406, 'evictions': 0}",
+   "cache_fast_stats": "{'entries': 1, 'hits': 1221, 'misses': 407, 'invalidations': 406, 'evictions': 0}",
+   "sclk_min": 2224.6,
+   "sclk_max": 2229.2
+  },
+  {
+   "Model": "gpt-oss-20b",
+   "Layer": "fc1",
+   "G": 4,
+   "avg_m": 512,
+   "N": 5760,
+   "K": 2880,
+   "accum": 8,
+   "cache_torch_tr_ms_per_dgrad": 0.1041,
+   "cache_fast_tr_ms_per_dgrad": 0.07718,
+   "nocache_torch_tr_ms_per_dgrad": 0.31216,
+   "nocache_fast_tr_ms_per_dgrad": 0.1097,
+   "triton_ms_per_dgrad": 0.12075,
+   "cache_torch_stats": "{'entries': 1, 'hits': 2114, 'misses': 302, 'invalidations': 301, 'evictions': 0}",
+   "cache_fast_stats": "{'entries': 1, 'hits': 2709, 'misses': 387, 'invalidations': 386, 'evictions': 0}",
+   "sclk_min": 2221.2,
+   "sclk_max": 2224.1
+  },
+  {
+   "Model": "qwen3-235b-a22b",
+   "Layer": "fc1",
+   "G": 16,
+   "avg_m": 2048,
+   "N": 8192,
+   "K": 4096,
+   "accum": 1,
+   "cache_torch_tr_ms_per_dgrad": 2.6511,
+   "cache_fast_tr_ms_per_dgrad": 1.24404,
+   "nocache_torch_tr_ms_per_dgrad": 2.65193,
+   "nocache_fast_tr_ms_per_dgrad": 1.24387,
+   "triton_ms_per_dgrad": 1.45874,
+   "cache_torch_stats": "{'entries': 1, 'hits': 0, 'misses': 102, 'invalidations': 101, 'evictions': 0}",
+   "cache_fast_stats": "{'entries': 1, 'hits': 0, 'misses': 207, 'invalidations': 206, 'evictions': 0}",
+   "sclk_min": 2075.9,
+   "sclk_max": 2081.0
+  },
+  {
+   "Model": "qwen3-235b-a22b",
+   "Layer": "fc1",
+   "G": 16,
+   "avg_m": 2048,
+   "N": 8192,
+   "K": 4096,
+   "accum": 2,
+   "cache_torch_tr_ms_per_dgrad": 1.89437,
+   "cache_fast_tr_ms_per_dgrad": 1.18493,
+   "nocache_torch_tr_ms_per_dgrad": 2.65554,
+   "nocache_fast_tr_ms_per_dgrad": 1.24508,
+   "triton_ms_per_dgrad": 1.46098,
+   "cache_torch_stats": "{'entries': 1, 'hits': 72, 'misses': 72, 'invalidations': 71, 'evictions': 0}",
+   "cache_fast_stats": "{'entries': 1, 'hits': 112, 'misses': 112, 'invalidations': 111, 'evictions': 0}",
+   "sclk_min": 2065.0,
+   "sclk_max": 2081.5
+  },
+  {
+   "Model": "qwen3-235b-a22b",
+   "Layer": "fc1",
+   "G": 16,
+   "avg_m": 2048,
+   "N": 8192,
+   "K": 4096,
+   "accum": 4,
+   "cache_torch_tr_ms_per_dgrad": 1.50956,
+   "cache_fast_tr_ms_per_dgrad": 1.15239,
+   "nocache_torch_tr_ms_per_dgrad": 2.65548,
+   "nocache_fast_tr_ms_per_dgrad": 1.24628,
+   "triton_ms_per_dgrad": 1.46157,
+   "cache_torch_stats": "{'entries': 1, 'hits': 141, 'misses': 47, 'invalidations': 46, 'evictions': 0}",
+   "cache_fast_stats": "{'entries': 1, 'hits': 186, 'misses': 62, 'invalidations': 61, 'evictions': 0}",
+   "sclk_min": 2054.2,
+   "sclk_max": 2069.6
+  },
+  {
+   "Model": "qwen3-235b-a22b",
+   "Layer": "fc1",
+   "G": 16,
+   "avg_m": 2048,
+   "N": 8192,
+   "K": 4096,
+   "accum": 8,
+   "cache_torch_tr_ms_per_dgrad": 1.31464,
+   "cache_fast_tr_ms_per_dgrad": 1.13467,
+   "nocache_torch_tr_ms_per_dgrad": 2.65395,
+   "nocache_fast_tr_ms_per_dgrad": 1.24642,
+   "triton_ms_per_dgrad": 1.4611,
+   "cache_torch_stats": "{'entries': 1, 'hits': 224, 'misses': 32, 'invalidations': 31, 'evictions': 0}",
+   "cache_fast_stats": "{'entries': 1, 'hits': 259, 'misses': 37, 'invalidations': 36, 'evictions': 0}",
+   "sclk_min": 2051.0,
+   "sclk_max": 2070.1
+  },
+  {
+   "Model": "deepseek-v3",
+   "Layer": "fc1",
+   "G": 32,
+   "avg_m": 128,
+   "N": 4096,
+   "K": 7168,
+   "accum": 1,
+   "cache_torch_tr_ms_per_dgrad": 3.24259,
+   "cache_fast_tr_ms_per_dgrad": 0.53408,
+   "nocache_torch_tr_ms_per_dgrad": 3.25723,
+   "nocache_fast_tr_ms_per_dgrad": 0.53359,
+   "triton_ms_per_dgrad": 0.39579,
+   "cache_torch_stats": "{'entries': 1, 'hits': 0, 'misses': 82, 'invalidations': 81, 'evictions': 0}",
+   "cache_fast_stats": "{'entries': 1, 'hits': 0, 'misses': 407, 'invalidations': 406, 'evictions': 0}",
+   "sclk_min": 2106.5,
+   "sclk_max": 2115.2
+  },
+  {
+   "Model": "deepseek-v3",
+   "Layer": "fc1",
+   "G": 32,
+   "avg_m": 128,
+   "N": 4096,
+   "K": 7168,
+   "accum": 2,
+   "cache_torch_tr_ms_per_dgrad": 1.77975,
+   "cache_fast_tr_ms_per_dgrad": 0.41377,
+   "nocache_torch_tr_ms_per_dgrad": 3.2525,
+   "nocache_fast_tr_ms_per_dgrad": 0.53216,
+   "triton_ms_per_dgrad": 0.39391,
+   "cache_torch_stats": "{'entries': 1, 'hits': 77, 'misses': 77, 'invalidations': 76, 'evictions': 0}",
+   "cache_fast_stats": "{'entries': 1, 'hits': 292, 'misses': 292, 'invalidations': 291, 'evictions': 0}",
+   "sclk_min": 2099.4,
+   "sclk_max": 2108.1
+  },
+  {
+   "Model": "deepseek-v3",
+   "Layer": "fc1",
+   "G": 32,
+   "avg_m": 128,
+   "N": 4096,
+   "K": 7168,
+   "accum": 4,
+   "cache_torch_tr_ms_per_dgrad": 1.05671,
+   "cache_fast_tr_ms_per_dgrad": 0.35359,
+   "nocache_torch_tr_ms_per_dgrad": 3.248,
+   "nocache_fast_tr_ms_per_dgrad": 0.53046,
+   "triton_ms_per_dgrad": 0.39425,
+   "cache_torch_stats": "{'entries': 1, 'hits': 201, 'misses': 67, 'invalidations': 66, 'evictions': 0}",
+   "cache_fast_stats": "{'entries': 1, 'hits': 546, 'misses': 182, 'invalidations': 181, 'evictions': 0}",
+   "sclk_min": 2094.6,
+   "sclk_max": 2106.0
+  },
+  {
+   "Model": "deepseek-v3",
+   "Layer": "fc1",
+   "G": 32,
+   "avg_m": 128,
+   "N": 4096,
+   "K": 7168,
+   "accum": 8,
+   "cache_torch_tr_ms_per_dgrad": 0.6909,
+   "cache_fast_tr_ms_per_dgrad": 0.32644,
+   "nocache_torch_tr_ms_per_dgrad": 3.24863,
+   "nocache_fast_tr_ms_per_dgrad": 0.5316,
+   "triton_ms_per_dgrad": 0.39349,
+   "cache_torch_stats": "{'entries': 1, 'hits': 364, 'misses': 52, 'invalidations': 51, 'evictions': 0}",
+   "cache_fast_stats": "{'entries': 1, 'hits': 714, 'misses': 102, 'invalidations': 101, 'evictions': 0}",
+   "sclk_min": 2095.1,
+   "sclk_max": 2107.5
+  },
+  {
+   "Model": "deepseek-v3",
+   "Layer": "fc2",
+   "G": 32,
+   "avg_m": 512,
+   "N": 7168,
+   "K": 2048,
+   "accum": 1,
+   "cache_torch_tr_ms_per_dgrad": 1.97247,
+   "cache_fast_tr_ms_per_dgrad": 0.4536,
+   "nocache_torch_tr_ms_per_dgrad": 1.9797,
+   "nocache_fast_tr_ms_per_dgrad": 0.45534,
+   "triton_ms_per_dgrad": 0.34477,
+   "cache_torch_stats": "{'entries': 1, 'hits': 0, 'misses': 132, 'invalidations': 131, 'evictions': 0}",
+   "cache_fast_stats": "{'entries': 1, 'hits': 0, 'misses': 407, 'invalidations': 406, 'evictions': 0}",
+   "sclk_min": 2097.8,
+   "sclk_max": 2107.8
+  },
+  {
+   "Model": "deepseek-v3",
+   "Layer": "fc2",
+   "G": 32,
+   "avg_m": 512,
+   "N": 7168,
+   "K": 2048,
+   "accum": 2,
+   "cache_torch_tr_ms_per_dgrad": 1.15737,
+   "cache_fast_tr_ms_per_dgrad": 0.39613,
+   "nocache_torch_tr_ms_per_dgrad": 1.9782,
+   "nocache_fast_tr_ms_per_dgrad": 0.4541,
+   "triton_ms_per_dgrad": 0.34374,
+   "cache_torch_stats": "{'entries': 1, 'hits': 112, 'misses': 112, 'invalidations': 111, 'evictions': 0}",
+   "cache_fast_stats": "{'entries': 1, 'hits': 322, 'misses': 322, 'invalidations': 321, 'evictions': 0}",
+   "sclk_min": 2069.9,
+   "sclk_max": 2073.4
+  },
+  {
+   "Model": "deepseek-v3",
+   "Layer": "fc2",
+   "G": 32,
+   "avg_m": 512,
+   "N": 7168,
+   "K": 2048,
+   "accum": 4,
+   "cache_torch_tr_ms_per_dgrad": 0.74975,
+   "cache_fast_tr_ms_per_dgrad": 0.36706,
+   "nocache_torch_tr_ms_per_dgrad": 1.97789,
+   "nocache_fast_tr_ms_per_dgrad": 0.45309,
+   "triton_ms_per_dgrad": 0.34288,
+   "cache_torch_stats": "{'entries': 1, 'hits': 276, 'misses': 92, 'invalidations': 91, 'evictions': 0}",
+   "cache_fast_stats": "{'entries': 1, 'hits': 531, 'misses': 177, 'invalidations': 176, 'evictions': 0}",
+   "sclk_min": 2060.8,
+   "sclk_max": 2069.1
+  },
+  {
+   "Model": "deepseek-v3",
+   "Layer": "fc2",
+   "G": 32,
+   "avg_m": 512,
+   "N": 7168,
+   "K": 2048,
+   "accum": 8,
+   "cache_torch_tr_ms_per_dgrad": 0.54658,
+   "cache_fast_tr_ms_per_dgrad": 0.35239,
+   "nocache_torch_tr_ms_per_dgrad": 1.97821,
+   "nocache_fast_tr_ms_per_dgrad": 0.4532,
+   "triton_ms_per_dgrad": 0.34249,
+   "cache_torch_stats": "{'entries': 1, 'hits': 434, 'misses': 62, 'invalidations': 61, 'evictions': 0}",
+   "cache_fast_stats": "{'entries': 1, 'hits': 679, 'misses': 97, 'invalidations': 96, 'evictions': 0}",
+   "sclk_min": 2065.0,
+   "sclk_max": 2073.6
+  }
+ ]
+}

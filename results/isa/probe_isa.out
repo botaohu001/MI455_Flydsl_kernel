@@ -1,0 +1,56 @@
+############ 1. DS transpose reads ############
+  gfx1250        ds_load_tr16_b128 v[0:3], v4                              OK  [0x00,0x00,0xf0,0xdb,0x04,0x00,0x00,0x00]
+  gfx950         ds_load_tr16_b128 v[0:3], v4                              WRONG-TARGET
+
+  gfx1250        ds_load_tr8_b64 v[0:1], v4                                OK  [0x00,0x00,0xf4,0xdb,0x04,0x00,0x00,0x00]
+  gfx950         ds_load_tr8_b64 v[0:1], v4                                WRONG-TARGET
+
+  gfx1250        ds_load_tr6_b96 v[0:2], v4                                OK  [0x00,0x00,0xec,0xdb,0x04,0x00,0x00,0x00]
+  gfx950         ds_load_tr6_b96 v[0:2], v4                                WRONG-TARGET
+
+  gfx1250        ds_load_tr4_b64 v[0:1], v4                                OK  [0x00,0x00,0xe8,0xdb,0x04,0x00,0x00,0x00]
+  gfx950         ds_load_tr4_b64 v[0:1], v4                                WRONG-TARGET
+
+  gfx1250        ds_read_b64_tr_b16 v[0:1], v4                             WRONG-TARGET
+  gfx950         ds_read_b64_tr_b16 v[0:1], v4                             OK  [0x00,0x00,0xc6,0xd9,0x04,0x00,0x00,0x00]
+
+  gfx1250        ds_read_b64_tr_b8 v[0:1], v4                              WRONG-TARGET
+  gfx950         ds_read_b64_tr_b8 v[0:1], v4                              OK  [0x00,0x00,0xc4,0xd9,0x04,0x00,0x00,0x00]
+
+  gfx1250        ds_read_b64_tr_b4 v[0:1], v4                              WRONG-TARGET
+  gfx950         ds_read_b64_tr_b4 v[0:1], v4                              OK  [0x00,0x00,0xc0,0xd9,0x04,0x00,0x00,0x00]
+
+  gfx1250        ds_read_b96_tr_b6 v[0:2], v4                              WRONG-TARGET
+  gfx950         ds_read_b96_tr_b6 v[0:2], v4                              OK  [0x00,0x00,0xc2,0xd9,0x04,0x00,0x00,0x00]
+
+############ 2. DS transpose with offset (imm field width) ############
+  gfx1250        ds_load_tr16_b128 v[0:3], v4 offset:65535                 OK  [0xff,0xff,0xf0,0xdb,0x04,0x00,0x00,0x00]
+  gfx1250        ds_load_tr16_b128 v[0:3], v4 offset:65536                 OPERAND-ERR: expected a 16-bit unsigned offset
+
+############ 3. WMMA family on gfx1250 ############
+  gfx1250        v_wmma_f32_16x16x16_bf16 v[0:7], v[8:15], v[16:23], v[0:7]  WRONG-TARGET
+  gfx1250        v_wmma_f32_16x16x32_bf16 v[0:7], v[8:15], v[16:23], v[0:7]  OK  [0x00,0x00,0x62,0xcc,0x08,0x21,0x02,0x1c]
+  gfx1250        v_wmma_f32_16x16x64_bf16 v[0:7], v[8:15], v[16:23], v[0:7]  NO-SUCH-MNEMONIC
+  gfx1250        v_wmma_f32_16x16x128_bf16 v[0:7], v[8:15], v[16:23], v[0:7]  NO-SUCH-MNEMONIC
+  gfx1250        v_wmma_f32_16x16x32_bf16 v[0:7], v[8:15], v[16:23], v[0:7] neg_lo:[1,0,0]  OPERAND-ERR: invalid neg_lo operand
+  gfx1250        v_wmma_f32_16x16x32_bf16 v[0:7], v[8:15], v[16:23], v[0:7] transpose_a:1  OPERAND-ERR: not a valid operand.
+  gfx1250        v_wmma_f32_16x16x32_bf16 v[0:7], v[8:15], v[16:23], v[0:7] trans_a:1  OPERAND-ERR: not a valid operand.
+  gfx1250        v_wmma_f32_16x16x32_bf16 v[0:7], v[8:15], v[16:23], v[0:7] matrix_a_fmt:MATRIX_FMT_BF16  OPERAND-ERR: not a valid operand.
+  gfx1250        v_wmma_f32_16x16x32_bf16 v[0:7], v[8:15], v[16:23], v[0:7] matrix_a_scale:MATRIX_SCALE_ROW0  OPERAND-ERR: not a valid operand.
+
+############ 4. TDM / tensor DMA ############
+  gfx1250        tensor_load_to_lds s[0:3], s[4:7], s[8:11], s[12:15]      OPERAND-ERR: invalid operand for instruction
+  gfx1250        tensor_save_from_lds s[0:3], s[4:7], s[8:11], s[12:15]    NO-SUCH-MNEMONIC
+  gfx1250        tensor_load_to_lds s[0:3], s[4:7]                         OPERAND-ERR: invalid operand for instruction
+  gfx1250        tensor_stride_load_to_lds s[0:3], s[4:7]                  NO-SUCH-MNEMONIC
+
+############ 5. global_load_lds / transpose-in-flight ############
+  gfx1250        global_load_lds_b128 v[0:1], off                          NO-SUCH-MNEMONIC
+  gfx1250        global_load_lds_dwordx4 v[0:1], off                       WRONG-TARGET
+  gfx1250        global_load_tr_b128 v[0:3], v[4:5], off                   OK  [0x7c,0xc0,0x15,0xee,0x00,0x00,0x00,0x00,0x04,0x00,0x00,0x00]
+  gfx1250        global_load_tr16_b128 v[0:3], v[4:5], off                 OK  [0x7c,0xc0,0x15,0xee,0x00,0x00,0x00,0x00,0x04,0x00,0x00,0x00]
+  gfx1250        ds_bpermute_b32 v0, v1, v2                                OK  [0x00,0x00,0xcc,0xda,0x01,0x02,0x00,0x00]
+  gfx1250        v_permlane16_b32 v0, v1, s0, s1                           OK  [0x00,0x00,0x5b,0xd6,0x01,0x01,0x04,0x00]
+  gfx1250        v_permlane32_swap_b32 v0, v1                              WRONG-TARGET
+  gfx1250        v_permlane16_swap_b32 v0, v1                              OK  [0x01,0x93,0x00,0x7e]
+

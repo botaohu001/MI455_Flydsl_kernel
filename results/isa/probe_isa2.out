@@ -1,0 +1,236 @@
+############ A. AMDGPU intrinsic names: transpose / tensor / wmma ############
+  llvm.amdgcn.ds.load.tr16.b128
+  llvm.amdgcn.ds.load.tr4.b64
+  llvm.amdgcn.ds.load.tr6.b96
+  llvm.amdgcn.ds.load.tr8.b64
+  llvm.amdgcn.ds.read.tr16.b64
+  llvm.amdgcn.ds.read.tr4.b64
+  llvm.amdgcn.ds.read.tr6.b96
+  llvm.amdgcn.ds.read.tr8.b64
+  llvm.amdgcn.global.load.tr.b128
+  llvm.amdgcn.global.load.tr.b64
+  llvm.amdgcn.global.load.tr4.b64
+  llvm.amdgcn.global.load.tr6.b96
+  llvm.amdgcn.permlane.bcast
+  llvm.amdgcn.permlane.down
+  llvm.amdgcn.permlane.idx.gen
+  llvm.amdgcn.permlane.up
+  llvm.amdgcn.permlane.xor
+  llvm.amdgcn.permlane16
+  llvm.amdgcn.permlane16.swap
+  llvm.amdgcn.permlane16.var
+  llvm.amdgcn.permlane32.swap
+  llvm.amdgcn.permlane64
+  llvm.amdgcn.permlanex16
+  llvm.amdgcn.permlanex16.var
+  llvm.amdgcn.raw.ptr.buffer.atomic.add
+  llvm.amdgcn.raw.ptr.buffer.atomic.and
+  llvm.amdgcn.raw.ptr.buffer.atomic.cmpswap
+  llvm.amdgcn.raw.ptr.buffer.atomic.cond.sub.u32
+  llvm.amdgcn.raw.ptr.buffer.atomic.dec
+  llvm.amdgcn.raw.ptr.buffer.atomic.fadd
+  llvm.amdgcn.raw.ptr.buffer.atomic.fmax
+  llvm.amdgcn.raw.ptr.buffer.atomic.fmin
+  llvm.amdgcn.raw.ptr.buffer.atomic.inc
+  llvm.amdgcn.raw.ptr.buffer.atomic.or
+  llvm.amdgcn.raw.ptr.buffer.atomic.smax
+  llvm.amdgcn.raw.ptr.buffer.atomic.smin
+  llvm.amdgcn.raw.ptr.buffer.atomic.sub
+  llvm.amdgcn.raw.ptr.buffer.atomic.sub.clamp.u32
+  llvm.amdgcn.raw.ptr.buffer.atomic.swap
+  llvm.amdgcn.raw.ptr.buffer.atomic.umax
+  llvm.amdgcn.raw.ptr.buffer.atomic.umin
+  llvm.amdgcn.raw.ptr.buffer.atomic.xor
+  llvm.amdgcn.raw.ptr.buffer.load
+  llvm.amdgcn.raw.ptr.buffer.load.async.lds
+  llvm.amdgcn.raw.ptr.buffer.load.format
+  llvm.amdgcn.raw.ptr.buffer.load.lds
+  llvm.amdgcn.raw.ptr.buffer.store
+  llvm.amdgcn.raw.ptr.buffer.store.format
+  llvm.amdgcn.s.wait.tensorcnt
+  llvm.amdgcn.struct.ptr.buffer.atomic.add
+  llvm.amdgcn.struct.ptr.buffer.atomic.and
+  llvm.amdgcn.struct.ptr.buffer.atomic.cmpswap
+  llvm.amdgcn.struct.ptr.buffer.atomic.cond.sub.u32
+  llvm.amdgcn.struct.ptr.buffer.atomic.dec
+  llvm.amdgcn.struct.ptr.buffer.atomic.fadd
+  llvm.amdgcn.struct.ptr.buffer.atomic.fmax
+  llvm.amdgcn.struct.ptr.buffer.atomic.fmin
+  llvm.amdgcn.struct.ptr.buffer.atomic.inc
+  llvm.amdgcn.struct.ptr.buffer.atomic.or
+  llvm.amdgcn.struct.ptr.buffer.atomic.smax
+  llvm.amdgcn.struct.ptr.buffer.atomic.smin
+  llvm.amdgcn.struct.ptr.buffer.atomic.sub
+  llvm.amdgcn.struct.ptr.buffer.atomic.sub.clamp.u32
+  llvm.amdgcn.struct.ptr.buffer.atomic.swap
+  llvm.amdgcn.struct.ptr.buffer.atomic.umax
+  llvm.amdgcn.struct.ptr.buffer.atomic.umin
+  llvm.amdgcn.struct.ptr.buffer.atomic.xor
+  llvm.amdgcn.struct.ptr.buffer.load
+  llvm.amdgcn.struct.ptr.buffer.load.async.lds
+  llvm.amdgcn.struct.ptr.buffer.load.format
+  llvm.amdgcn.struct.ptr.buffer.load.lds
+  llvm.amdgcn.struct.ptr.buffer.store
+  llvm.amdgcn.struct.ptr.buffer.store.format
+  llvm.amdgcn.swmmac.bf16.16x16x32.bf16
+  llvm.amdgcn.swmmac.bf16.16x16x64.bf16
+  llvm.amdgcn.swmmac.bf16f32.16x16x64.bf16
+  llvm.amdgcn.swmmac.f16.16x16x128.bf8.bf8
+  llvm.amdgcn.swmmac.f16.16x16x128.bf8.fp8
+  llvm.amdgcn.swmmac.f16.16x16x128.fp8.bf8
+  llvm.amdgcn.swmmac.f16.16x16x128.fp8.fp8
+  llvm.amdgcn.swmmac.f16.16x16x32.f16
+  llvm.amdgcn.swmmac.f16.16x16x64.f16
+  llvm.amdgcn.swmmac.f32.16x16x128.bf8.bf8
+  llvm.amdgcn.swmmac.f32.16x16x128.bf8.fp8
+  llvm.amdgcn.swmmac.f32.16x16x128.fp8.bf8
+  llvm.amdgcn.swmmac.f32.16x16x128.fp8.fp8
+  llvm.amdgcn.swmmac.f32.16x16x32.bf16
+  llvm.amdgcn.swmmac.f32.16x16x32.bf8.bf8
+  llvm.amdgcn.swmmac.f32.16x16x32.bf8.fp8
+  llvm.amdgcn.swmmac.f32.16x16x32.f16
+  llvm.amdgcn.swmmac.f32.16x16x32.fp8.bf8
+  llvm.amdgcn.swmmac.f32.16x16x32.fp8.fp8
+  llvm.amdgcn.swmmac.f32.16x16x64.bf16
+  llvm.amdgcn.swmmac.f32.16x16x64.f16
+  llvm.amdgcn.swmmac.i32.16x16x128.iu8
+  llvm.amdgcn.swmmac.i32.16x16x32.iu4
+  llvm.amdgcn.swmmac.i32.16x16x32.iu8
+  llvm.amdgcn.swmmac.i32.16x16x64.iu4
+  llvm.amdgcn.tensor.load.to.lds
+  llvm.amdgcn.tensor.store.from.lds
+  llvm.amdgcn.wmma.bf16.16x16x16.bf16
+  llvm.amdgcn.wmma.bf16.16x16x16.bf16.tied
+  llvm.amdgcn.wmma.bf16.16x16x32.bf16
+  llvm.amdgcn.wmma.bf16f32.16x16x32.bf16
+  llvm.amdgcn.wmma.f16.16x16x128.bf8.bf8
+  llvm.amdgcn.wmma.f16.16x16x128.bf8.fp8
+  llvm.amdgcn.wmma.f16.16x16x128.fp8.bf8
+  llvm.amdgcn.wmma.f16.16x16x128.fp8.fp8
+  llvm.amdgcn.wmma.f16.16x16x16.f16
+  llvm.amdgcn.wmma.f16.16x16x16.f16.tied
+  llvm.amdgcn.wmma.f16.16x16x32.f16
+  llvm.amdgcn.wmma.f16.16x16x64.bf8.bf8
+  llvm.amdgcn.wmma.f16.16x16x64.bf8.fp8
+  llvm.amdgcn.wmma.f16.16x16x64.fp8.bf8
+  llvm.amdgcn.wmma.f16.16x16x64.fp8.fp8
+  llvm.amdgcn.wmma.f32.16x16x128.bf8.bf8
+  llvm.amdgcn.wmma.f32.16x16x128.bf8.fp8
+  llvm.amdgcn.wmma.f32.16x16x128.f8f6f4
+  llvm.amdgcn.wmma.f32.16x16x128.fp8.bf8
+  llvm.amdgcn.wmma.f32.16x16x128.fp8.fp8
+  llvm.amdgcn.wmma.f32.16x16x16.bf16
+  llvm.amdgcn.wmma.f32.16x16x16.bf8.bf8
+  llvm.amdgcn.wmma.f32.16x16x16.bf8.fp8
+  llvm.amdgcn.wmma.f32.16x16x16.f16
+  llvm.amdgcn.wmma.f32.16x16x16.fp8.bf8
+  llvm.amdgcn.wmma.f32.16x16x16.fp8.fp8
+  llvm.amdgcn.wmma.f32.16x16x32.bf16
+  llvm.amdgcn.wmma.f32.16x16x32.f16
+  llvm.amdgcn.wmma.f32.16x16x4.f32
+  llvm.amdgcn.wmma.f32.16x16x64.bf8.bf8
+  llvm.amdgcn.wmma.f32.16x16x64.bf8.fp8
+  llvm.amdgcn.wmma.f32.16x16x64.fp8.bf8
+  llvm.amdgcn.wmma.f32.16x16x64.fp8.fp8
+  llvm.amdgcn.wmma.f32.32x16x128.f4
+  llvm.amdgcn.wmma.i32.16x16x16.iu4
+  llvm.amdgcn.wmma.i32.16x16x16.iu8
+  llvm.amdgcn.wmma.i32.16x16x32.iu4
+  llvm.amdgcn.wmma.i32.16x16x64.iu8
+  llvm.amdgcn.wmma.scale.f32.16x16x128.f8f6f4
+  llvm.amdgcn.wmma.scale.f32.32x16x128.f4
+  llvm.amdgcn.wmma.scale16.f32.16x16x128.f8f6f4
+  llvm.amdgcn.wmma.scale16.f32.32x16x128.f4
+
+############ B. every 'ds_load_tr' / 'global_load_tr' mnemonic in the string table ############
+  ds_load_tr16_b128
+  ds_load_tr4_b64
+  ds_load_tr6_b96
+  ds_load_tr8_b64
+  global_load_tr16_b128
+  global_load_tr4_b64
+  global_load_tr6_b96
+  global_load_tr8_b64
+  global_load_tr_b128
+  global_load_tr_b64
+
+############ B2. every 'tensor_' mnemonic ############
+  tensor_load_to_lds
+  tensor_save
+  tensor_spec
+  tensor_stop
+  tensor_store_from_lds
+
+############ C. all v_wmma* / v_swmmac* mnemonics that gfx1250 accepts ############
+  gfx1250 accepts mnemonic: v_swmmac_bf16_16x16x32_bf16
+  gfx1250 accepts mnemonic: v_swmmac_bf16_16x16x64_bf16
+  gfx1250 accepts mnemonic: v_swmmac_bf16f32_16x16x64_bf16
+  gfx1250 accepts mnemonic: v_swmmac_f16_16x16x128_bf8_bf8
+  gfx1250 accepts mnemonic: v_swmmac_f16_16x16x128_bf8_fp8
+  gfx1250 accepts mnemonic: v_swmmac_f16_16x16x128_fp8_bf8
+  gfx1250 accepts mnemonic: v_swmmac_f16_16x16x128_fp8_fp8
+  gfx1250 accepts mnemonic: v_swmmac_f16_16x16x32_f16
+  gfx1250 accepts mnemonic: v_swmmac_f16_16x16x64_f16
+  gfx1250 accepts mnemonic: v_swmmac_f32_16x16x128_bf8_bf8
+  gfx1250 accepts mnemonic: v_swmmac_f32_16x16x128_bf8_fp8
+  gfx1250 accepts mnemonic: v_swmmac_f32_16x16x128_fp8_bf8
+  gfx1250 accepts mnemonic: v_swmmac_f32_16x16x128_fp8_fp8
+  gfx1250 accepts mnemonic: v_swmmac_f32_16x16x32_bf16
+  gfx1250 accepts mnemonic: v_swmmac_f32_16x16x32_bf8_bf8
+  gfx1250 accepts mnemonic: v_swmmac_f32_16x16x32_bf8_fp8
+  gfx1250 accepts mnemonic: v_swmmac_f32_16x16x32_f16
+  gfx1250 accepts mnemonic: v_swmmac_f32_16x16x32_fp8_bf8
+  gfx1250 accepts mnemonic: v_swmmac_f32_16x16x32_fp8_fp8
+  gfx1250 accepts mnemonic: v_swmmac_f32_16x16x64_bf16
+  gfx1250 accepts mnemonic: v_swmmac_f32_16x16x64_f16
+  gfx1250 accepts mnemonic: v_swmmac_i32_16x16x128_iu8
+  gfx1250 accepts mnemonic: v_swmmac_i32_16x16x32_iu4
+  gfx1250 accepts mnemonic: v_swmmac_i32_16x16x32_iu8
+  gfx1250 accepts mnemonic: v_swmmac_i32_16x16x64_iu4
+  gfx1250 accepts mnemonic: v_wmma_bf16_16x16x32_bf16
+  gfx1250 accepts mnemonic: v_wmma_bf16f32_16x16x32_bf16
+  gfx1250 accepts mnemonic: v_wmma_f16_16x16x128_bf8_bf8
+  gfx1250 accepts mnemonic: v_wmma_f16_16x16x128_bf8_fp8
+  gfx1250 accepts mnemonic: v_wmma_f16_16x16x128_fp8_bf8
+  gfx1250 accepts mnemonic: v_wmma_f16_16x16x128_fp8_fp8
+  gfx1250 accepts mnemonic: v_wmma_f16_16x16x32_f16
+  gfx1250 accepts mnemonic: v_wmma_f16_16x16x64_bf8_bf8
+  gfx1250 accepts mnemonic: v_wmma_f16_16x16x64_bf8_fp8
+  gfx1250 accepts mnemonic: v_wmma_f16_16x16x64_fp8_bf8
+  gfx1250 accepts mnemonic: v_wmma_f16_16x16x64_fp8_fp8
+  gfx1250 accepts mnemonic: v_wmma_f32_16x16x128_bf8_bf8
+  gfx1250 accepts mnemonic: v_wmma_f32_16x16x128_bf8_fp8
+  gfx1250 accepts mnemonic: v_wmma_f32_16x16x128_f8f6f4
+  gfx1250 accepts mnemonic: v_wmma_f32_16x16x128_fp8_bf8
+  gfx1250 accepts mnemonic: v_wmma_f32_16x16x128_fp8_fp8
+  gfx1250 accepts mnemonic: v_wmma_f32_16x16x32_bf16
+  gfx1250 accepts mnemonic: v_wmma_f32_16x16x32_f16
+  gfx1250 accepts mnemonic: v_wmma_f32_16x16x4_f32
+  gfx1250 accepts mnemonic: v_wmma_f32_16x16x64_bf8_bf8
+  gfx1250 accepts mnemonic: v_wmma_f32_16x16x64_bf8_fp8
+  gfx1250 accepts mnemonic: v_wmma_f32_16x16x64_fp8_bf8
+  gfx1250 accepts mnemonic: v_wmma_f32_16x16x64_fp8_fp8
+  gfx1250 accepts mnemonic: v_wmma_f32_32x16x128_f4
+  gfx1250 accepts mnemonic: v_wmma_i32_16x16x64_iu8
+  gfx1250 accepts mnemonic: v_wmma_ld_scale16_paired_b64
+  gfx1250 accepts mnemonic: v_wmma_scale16_f32_16x16x128_f8f6f4
+  gfx1250 accepts mnemonic: v_wmma_scale16_f32_32x16x128_f4
+  gfx1250 accepts mnemonic: v_wmma_scale_f32_16x16x128_f8f6f4
+  gfx1250 accepts mnemonic: v_wmma_scale_f32_32x16x128_f4
+
+############ D. tensor_load_to_lds operand forms ############
+  tensor_load_to_lds s[0:3], s[4:7], s[8:11], s[12:15] th:TH_LOAD_NT -> <stdin>:1:28: error: invalid operand for instruction
+  tensor_load_to_lds s[0:3], s[4:7], s[8:11], s[12:15] scope:SCOPE_SYS -> <stdin>:1:28: error: invalid operand for instruction
+  tensor_load_to_lds s[0:3], s[4:11], s[12:15], s[16:19]           -> 	tensor_load_to_lds s[0:3], s[4:11], s[12:15], s[16:19] ; encoding: [0x01,0x00,0x71,0xd0,0
+  tensor_load_to_lds s[0:7], s[8:15], s[16:23], s[24:31]           -> <stdin>:1:20: error: invalid operand for instruction
+  tensor_load_to_lds s[0:3]                                        -> <stdin>:1:1: error: too few operands for instruction
+
+############ E. DS opcode neighbourhood of ds_load_tr16_b128 on gfx1250 ############
+<repo>/probes/isa/probe_isa2.sh: line 45: xxd: command not found
+  0x00,0x00,0xf0,0xdb,0x04,0x00,0x00,0x00 -> 
+<repo>/probes/isa/probe_isa2.sh: line 45: xxd: command not found
+  0x00,0x00,0xf4,0xdb,0x04,0x00,0x00,0x00 -> 
+<repo>/probes/isa/probe_isa2.sh: line 45: xxd: command not found
+  0x00,0x00,0xec,0xdb,0x04,0x00,0x00,0x00 -> 
+<repo>/probes/isa/probe_isa2.sh: line 45: xxd: command not found
+  0x00,0x00,0xe8,0xdb,0x04,0x00,0x00,0x00 -> 
