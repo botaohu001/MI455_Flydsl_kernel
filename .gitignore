@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Editors
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# ---------------------------------------------------------------------------
+# Large regenerable build artifacts
+# ---------------------------------------------------------------------------
+# The flydsl compiler emits 22 MLIR/LLVM stage dumps per kernel (9.5 MB for one
+# kernel). Only the final ISA and the LLVM IR are checked in -- see asm/README.md
+# for what was dropped, why, and the one command that regenerates all of it.
+asm/**/*.mlir
+asm/**/[0-9][0-9]_*.ll
+!asm/nn_native/20_llvm_ir.ll
+
+# Raw benchmark stdout. The CSV/JSON under results/ is the same data in a form
+# you can actually load; the logs are 1.2 MB of scroll.
+logs/
+*.log
+
+# The CDNA5 ISA PDF and its text extraction are AMD-published documents, not
+# ours to redistribute. probes/isa/pdf_extract.py regenerates the .txt from a
+# copy you download yourself. See NOTICE.
+cdna5_isa.pdf
+cdna5_isa.txt

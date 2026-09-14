@@ -1,0 +1,77 @@
+MI455_Flydsl_kernel
+Copyright (c) 2026, Advanced Micro Devices, Inc. All rights reserved.
+
+This product includes software developed at Advanced Micro Devices, Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+these files except in compliance with the License. You may obtain a copy of the
+License in the LICENSE file at the root of this repository, or at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+================================================================================
+Provenance
+================================================================================
+
+The kernel sources in `kernel/` are derived work. The chain is:
+
+1. FlyDSL (https://github.com/ROCm/FlyDSL), Apache-2.0
+   Copyright (c) 2026 FlyDSL Project Contributors
+
+     kernels/gemm/gemm_bf16_gfx1250.py     dense gfx1250 TDM + WMMA NT GEMM
+     kernels/gemm/gemm_common_gfx1250.py   LDS copy ops / pipeline fences
+
+   These supplied the dense gfx1250 tile body that everything here is built on.
+
+2. Primus-Turbo (https://github.com/AMD-AGI/Primus-Turbo)
+   Copyright (c) 2026, Advanced Micro Devices, Inc.
+
+     primus_turbo/flydsl/grouped_gemm/grouped_gemm_bf16_kernel.py  (gfx950 / MI355X)
+
+   This supplied the grouped control logic: the M-tile table, per-expert
+   rebasing, the tile -> (expert, block_m, block_n) decode, and the XCD remap.
+
+   Note that Primus-Turbo as a whole is MIT-licensed, but its FlyDSL grouped-GEMM
+   kernels carry an Apache-2.0 header because of the FlyDSL provenance above.
+   The Apache-2.0 header is the one that governs the files in `kernel/`, and it
+   has been preserved verbatim at the top of each file.
+
+3. This repository
+   Copyright (c) 2026, Advanced Micro Devices, Inc.
+
+   The gfx1250 / MI455X port itself (WMMA, wave32, TDM, the native NN pipeline
+   built on `ds_load_tr16_b128`), plus the measurement harnesses, probes and
+   documentation.
+
+================================================================================
+Licensing of the documentation
+================================================================================
+
+`docs/`, `README.md` and the raw data under `results/` are covered by the same
+Apache-2.0 license as the code, rather than by a separate documentation license.
+
+Reasoning: the documentation is not independent prose, it is a description of
+the code and of measurements taken from it, and a downstream consumer who
+vendors `kernel/` will usually want the pitfalls and the tuning rationale to
+travel with it. A second license on the prose would force them to track two
+sets of terms for one artifact. Apache-2.0 covers documentation ("the Work"
+includes documentation in Section 1) and its attribution requirements are
+satisfied by keeping this NOTICE file.
+
+================================================================================
+Third-party documents referenced but NOT redistributed
+================================================================================
+
+The ISA investigation in `docs/03-isa-investigation.md` cites the
+
+    "AMD Instinct CDNA5 Instruction Set Architecture Reference Guide"
+
+published by AMD at
+
+    https://www.amd.com/content/dam/amd/en/documents/instinct-tech-docs/
+    instruction-set-architectures/amd-instinct-cdna5-instruction-set-architecture.pdf
+
+That document is **not** included in this repository. Section references are
+given by section number and heading so they can be followed in the published
+PDF. `probes/isa/pdf_extract.py` reproduces the text extraction that the
+original investigation used, if you want the line-addressable form.
