@@ -1,46 +1,41 @@
-# 7. Performance
+# 7. 性能
 
-Full three-section delivery matrix plus the comparisons that matter. Raw
-per-point CSVs are in `results/`.
+三段全矩阵，外加真正重要的那些对比。逐点原始 CSV 在 `results/`。
 
-> **These are absolute throughput figures for pre-release hardware.** Check your
-> organisation's disclosure policy before quoting them outside it.
+> **这些是未发布硬件的绝对吞吐数据。** 对外引用前请先确认所在机构的披露政策。
 
 ---
 
-## 7.0 Measurement conditions — read before using any number
+## 7.0 测量条件 —— 用任何数字之前先读这一节
 
 | | |
 |---|---|
-| hardware | **1 × AMD MI455X (gfx1250)**, 256 CU, 432.0 GiB / 463.9 GB HBM. Single card; the other cards in the node were idle. Internal pre-release test system. |
-| clocks | **not pinned.** `sclk` sampled at every timed point and reported in the tables; it ranged **2010–2331 MHz** across this run. |
-| software | torch 2.11.0+rocm7.14, **flydsl 0.2.4**, ROCm 7.x container. No `/opt/rocm`; the toolchain ships as a wheel. |
-| timing | `torch.utils.benchmark.Timer`, 6 warmup calls (which also burns the first-call risk), then each sample is a launch loop filling ~40 ms. **Median of 5 samples**, `cv` reported. |
-| stability | **all 72 delivery points at cv < 2 %** (max 0.85 % in the dgrad round). No point needed flagging. |
-| numerics | fp32 per-group reference, judged host-side in float64. Not device fp64 — see `docs/06-pitfalls.md`. |
-| MFU denominator | **5033.2 TF/s** (MI455X spec peak dense bf16). |
+| 硬件 | **1 × AMD MI455X (gfx1250)**，256 CU，432.0 GiB / 463.9 GB HBM。单卡；节点上其余卡空闲。内部未发布测试机。 |
+| 时钟 | **未锁频。** 每个计时点都采样 `sclk` 并记在表里；本轮范围 **2010–2331 MHz**。 |
+| 软件 | torch 2.11.0+rocm7.14，**flydsl 0.2.4**，ROCm 7.x 容器。不需要 `/opt/rocm`，工具链以 wheel 形式提供。 |
+| 计时 | `torch.utils.benchmark.Timer`，6 次 warmup（同时烧掉首调用风险），之后每个样本是一个填满约 40 ms 的 launch 循环。**5 个样本取中位数**，并报 `cv`。 |
+| 稳定性 | **全部 72 个交付点 cv < 2%**（dgrad 那轮最大 0.85%）。没有需要标记的点。 |
+| 数值 | fp32 逐组参考，在 host 侧用 float64 判定。不用 device fp64 —— 见 `docs/06-pitfalls.md`。 |
+| MFU 分母 | **5033.2 TF/s**（MI455X spec 峰值 dense bf16）。 |
 
-**Why clocks are not pinned:** the Triton and hipBLASLt baselines were measured
-unpinned, and pinning only one side would invalidate the comparison. What
-substitutes for it: competing implementations are measured **in the same
-process, interleaved repeat by repeat**, so a clock excursion lands on both.
+**为什么不锁频：** Triton 和 hipBLASLt 的 baseline 是在未锁频下测的，只给一边
+锁频会让那个对比失效。替代它的是：竞争实现在**同一个进程里逐次交错测量**，
+所以时钟漂移会同等落在双方身上。
 
-⚠️ **Do not compare absolute numbers across the three sections below.** fwd and
-wgrad were measured in an earlier round than dgrad, at a different clock range
-(2106–2304 vs 2186–2331). Those code paths are **bitwise unchanged** (verified
-48/48) — the difference is the clock, not the kernel. Within a section, and
-within the four-calibre table in §7.4, everything is same-session.
+⚠️ **不要跨下面三个分段比较绝对数值。** fwd 和 wgrad 是在比 dgrad 更早的一轮里
+测的，时钟区间不同（2106–2304 vs 2186–2331）。那两条代码路径是**逐位未变**的
+（48/48 验证过）—— 差别来自时钟，不是 kernel。段内以及 §7.4 的四口径表内都是
+同 session 的。
 
-**Shapes** are the MoE fc1 (gate+up) and fc2 (down) projections of four models
-at EP=8, i.e. a subset of Primus-Turbo's own case table rather than a new set.
-`avg_m` is tokens actually routed to one expert
-(`seq · batch · topk / n_routed`).
+**Shape** 是四个模型在 EP=8 下的 MoE fc1（gate+up）与 fc2（down）投影，
+是 Primus-Turbo 自己那张 case 表的子集，不是新造的一套。`avg_m` 是实际路由到
+一个 expert 的 token 数（`seq · batch · topk / n_routed`）。
 
 ---
 
-## 7.1 Forward (NT)
+## 7.1 前向（NT）
 
-| model | proj | G | EP | batch | seq | avg_m | M(total) | N | K | dtype | ms | TF/s | MFU | config | sclk |
+| 模型 | proj | G | EP | batch | seq | avg_m | M(总) | N | K | dtype | ms | TF/s | MFU | config | sclk |
 |---|---|--:|--:|--:|--:|--:|--:|--:|--:|---|--:|--:|--:|---|--:|
 | gpt-oss-20b | fc1 | 4 | 8 | 1 | 4096 | 512 | 2048 | 5760 | 2880 | bf16 | 0.0669 | 1015.5 | 20.2% | BM128/BN128/BK64/mw2/nw2/nb3 | 2237 |
 | gpt-oss-20b | fc1 | 4 | 8 | 2 | 4096 | 1024 | 4096 | 5760 | 2880 | bf16 | 0.0957 | 1419.8 | 28.2% | BM256/BN256/BK64/mw2/nw2/nb3 | 2191 |
@@ -67,15 +62,15 @@ at EP=8, i.e. a subset of Primus-Turbo's own case table rather than a new set.
 | deepseek-v3 | fc2 | 32 | 8 | 2 | 4096 | 256 | 8192 | 7168 | 2048 | bf16 | 0.2237 | 1074.9 | 21.4% | BM256/BN256/BK128/mw2/nw2/nb2 | 2187 |
 | deepseek-v3 | fc2 | 32 | 8 | 4 | 4096 | 512 | 16384 | 7168 | 2048 | bf16 | 0.3557 | 1352.3 | 26.9% | BM256/BN256/BK128/mw2/nw2/nb2 | 2156 |
 
-**mean 1430.8 TF/s, peak 1955.4 · MFU mean 28.4 %, peak 38.9 % · cv max 1.98 %**
+**均值 1430.8 TF/s，峰值 1955.4 · MFU 均值 28.4%，峰值 38.9% · cv 最大 1.98%**
 
 ---
 
-## 7.2 Backward dgrad — the native NN pipeline
+## 7.2 反向 dgrad —— 原生 NN 流水线
 
-No transposed weight copy. `b[G,K,N]` read in place.
+没有转置权重副本。`b[G,K,N]` 原样读取。
 
-| model | proj | G | EP | batch | seq | avg_m | M(total) | N | K | dtype | ms | TF/s | MFU | config | sclk |
+| 模型 | proj | G | EP | batch | seq | avg_m | M(总) | N | K | dtype | ms | TF/s | MFU | config | sclk |
 |---|---|--:|--:|--:|--:|--:|--:|--:|--:|---|--:|--:|--:|---|--:|
 | gpt-oss-20b | fc1 | 4 | 8 | 1 | 4096 | 512 | 2048 | 5760 | 2880 | bf16 | 0.0629 | 1080.6 | 21.5% | BM128/BN128/BK128/mw2/nw2/nb2 | 2295 |
 | gpt-oss-20b | fc1 | 4 | 8 | 2 | 4096 | 1024 | 4096 | 5760 | 2880 | bf16 | 0.0895 | 1519.1 | 30.2% | BM256/BN256/BK128/mw2/nw2/nb2 | 2254 |
@@ -102,17 +97,17 @@ No transposed weight copy. `b[G,K,N]` read in place.
 | deepseek-v3 | fc2 | 32 | 8 | 2 | 4096 | 256 | 8192 | 7168 | 2048 | bf16 | 0.2116 | 1136.5 | 22.6% | BM256/BN256/BK128/mw2/nw2/nb2 | 2200 |
 | deepseek-v3 | fc2 | 32 | 8 | 4 | 4096 | 512 | 16384 | 7168 | 2048 | bf16 | 0.3287 | 1463.7 | 29.1% | BM256/BN256/BK128/mw2/nw2/nb2 | 2186 |
 
-**mean 1415.5 TF/s, peak 1972.9 · MFU mean 28.1 %, peak 39.2 % · cv max 0.70 %**
+**均值 1415.5 TF/s，峰值 1972.9 · MFU 均值 28.1%，峰值 39.2% · cv 最大 0.70%**
 
 ---
 
-## 7.3 Backward wgrad (variable-K)
+## 7.3 反向 wgrad（variable-K）
 
-End-to-end calibre: both operands read token-major as they are, transposed in
-LDS. **No `.t().contiguous()` anywhere in the timer** — directly comparable to
-the CK and Triton variable-K backends without correction.
+端到端口径：两个操作数都按 token-major 原样读入，转置在 LDS 里做。
+**计时器里没有任何 `.t().contiguous()`** —— 与 CK / Triton 的 variable-K
+backend 天然可比，不需要口径校正。
 
-| model | proj | G | EP | batch | seq | avg_m | M(total) | N | K | dtype | ms | TF/s | MFU | config | sclk |
+| 模型 | proj | G | EP | batch | seq | avg_m | M(总) | N | K | dtype | ms | TF/s | MFU | config | sclk |
 |---|---|--:|--:|--:|--:|--:|--:|--:|--:|---|--:|--:|--:|---|--:|
 | gpt-oss-20b | fc1 | 4 | 8 | 1 | 4096 | 512 | 2048 | 5760 | 2880 | bf16 | 0.0649 | 1047.1 | 20.8% | BM256/BN256/BK128/mw4/nw2/nb2 | 2237 |
 | gpt-oss-20b | fc1 | 4 | 8 | 2 | 4096 | 1024 | 4096 | 5760 | 2880 | bf16 | 0.1042 | 1303.9 | 25.9% | BM256/BN256/BK128/mw4/nw2/nb2 | 2191 |
@@ -139,32 +134,30 @@ the CK and Triton variable-K backends without correction.
 | deepseek-v3 | fc2 | 32 | 8 | 2 | 4096 | 256 | 8192 | 7168 | 2048 | bf16 | 0.2668 | 901.6 | 17.9% | BM256/BN256/BK128/mw4/nw2/nb2 | 2187 |
 | deepseek-v3 | fc2 | 32 | 8 | 4 | 4096 | 512 | 16384 | 7168 | 2048 | bf16 | 0.3903 | 1232.4 | 24.5% | BM256/BN256/BK128/mw4/nw2/nb2 | 2156 |
 
-**mean 1274.0 TF/s, peak 1758.0 · MFU mean 25.3 %, peak 34.9 % · cv max 0.67 %**
+**均值 1274.0 TF/s，峰值 1758.0 · MFU 均值 25.3%，峰值 34.9% · cv 最大 0.67%**
 
-Note every wgrad row runs the **same** tile, `mw4` and not `mw2`: `avg_m` is the
-reduction dimension here and deliberately does not enter tile selection
-(`docs/05-optimization-log.md`).
+注意每一行 wgrad 都跑**同一个** tile，而且是 `mw4` 不是 `mw2`：这里 `avg_m`
+是归约维，刻意不参与 tile 选择（见 `docs/05-optimization-log.md`）。
 
-The worst point, deepseek-v3 fc1 @ avg_m=128 at 594 TF/s, is **not a tile
-problem**: that shape writes 1.88 GB of output for 240 GFLOP of work. It is
-output-bandwidth bound and no tile fixes it.
+最差的点 deepseek-v3 fc1 @ avg_m=128 只有 594 TF/s，**不是 tile 的问题**：
+这个 shape 为 240 GFLOP 的计算写出 1.88 GB 输出。它受限于输出带宽，换 tile
+救不了。
 
 ---
 
-## 7.4 Four calibres, same process, interleaved
+## 7.4 四种口径，同进程，逐点交错
 
-The comparison that actually settles "was the native NN pipeline worth it".
-All four measured point by point in one process, so clock drift hits all of them
-equally.
+这是真正能回答"原生 NN 流水线值不值"的对比。四者在一个进程里逐点测量，
+所以时钟漂移对四者一视同仁。
 
-- **native** — the shipped NN pipeline, `b[G,K,N]` read in place
-- **hoist** — `b_nt` prebuilt outside the timer; the *upper bound* a real
-  training loop could reach with a transposed copy
-- **fast_pc** — flydsl + the tiled Triton transpose, **per call, inside the
-  timer** (not the 1.07 TB/s upstream helper)
-- **triton** — Triton's grouped GEMM
+- **native** —— 交付的 NN 流水线，`b[G,K,N]` 原样读取
+- **hoist** —— `b_nt` 预先建好、不计入计时；这是一个真实训练循环用转置副本所能
+  达到的*上界*
+- **fast_pc** —— flydsl + tiled Triton 转置，**per-call，计入计时**
+  （不是那个 1.07 TB/s 的上游 helper）
+- **triton** —— Triton 的 grouped GEMM
 
-| model | proj | avg_m | native ms | hoist ms | fast_pc ms | triton ms | nat/hoist | nat/fast_pc | nat/triton |
+| 模型 | proj | avg_m | native ms | hoist ms | fast_pc ms | triton ms | nat/hoist | nat/fast_pc | nat/triton |
 |---|---|--:|--:|--:|--:|--:|--:|--:|--:|
 | gpt-oss-20b | fc1 | 512 | 0.0630 | 0.0623 | 0.0963 | 0.1202 | 0.990 | 1.529 | 1.909 |
 | gpt-oss-20b | fc1 | 1024 | 0.0896 | 0.0859 | 0.1190 | 0.1259 | 0.958 | 1.327 | 1.405 |
@@ -191,100 +184,92 @@ equally.
 | deepseek-v3 | fc2 | 256 | 0.2113 | 0.2096 | 0.3265 | 0.1802 | 0.992 | 1.545 | **0.853** |
 | deepseek-v3 | fc2 | 512 | 0.3291 | 0.3269 | 0.4429 | 0.3402 | 0.993 | 1.345 | 1.034 |
 
-| comparison | geomean | min | max | native faster on |
+| 对比 | 几何均值 | min | max | 原生更快的点 |
 |---|--:|--:|--:|---|
-| **native vs hoist** | **0.9792** | 0.872 | 1.031 | 2/24 |
-| **native vs flydsl + fast transpose, per call** | **1.3574** | 1.108 | 1.908 | **24/24** |
-| **native vs Triton** | **1.2082** | 0.853 | 2.107 | 20/24 |
+| **原生 vs hoist** | **0.9792** | 0.872 | 1.031 | 2/24 |
+| **原生 vs flydsl + 快转置 per-call** | **1.3574** | 1.108 | 1.908 | **24/24** |
+| **原生 vs Triton** | **1.2082** | 0.853 | 2.107 | 20/24 |
 
-### All three numbers, stated plainly
+### 三个数字，一个都不省
 
-**The native GEMM is 2.1 % slower than the NT GEMM** (0.979). That is the honest
-like-for-like: same work, same session, and the NT path had a transposed weight
-handed to it for free.
+**原生 GEMM 比 NT GEMM 慢 2.1%**（0.979）。这是诚实的 like-for-like：
+同样的工作量、同一个 session，而且 NT 那一侧是被白送了一份转置权重的。
 
-**Against what a caller can actually do per call it is 1.357× faster**, 24/24.
-"hoist" is an upper bound that requires the caller to maintain a parameter-sized
-copy and invalidate it correctly; "fast_pc" is what you get if you do not.
+**对照调用方每次调用真正能做到的，它快 1.357×**，24 战 24 胜。"hoist" 是一个
+上界，要求调用方维护一份参数大小的副本并正确地让它失效；"fast_pc" 才是你不做
+这件事时得到的结果。
 
-**Against Triton it is 1.208×, winning 20 of 24.**
+**对 Triton 是 1.208×，24 个点里赢 20 个。**
 
-The 2.1 % buys: **no transposed weight copy** (up to 2.62 GiB per layer),
-**nothing to invalidate** (so the fused-AdamW `_version` hazard cannot occur),
-and no cache lifetime question.
+那 2.1% 换来的是：**没有转置权重副本**（每层最多 2.62 GiB）、
+**没有任何需要失效的东西**（因此 fused AdamW 的 `_version` 隐患不可能发生）、
+以及没有缓存生命周期的问题。
 
-### The 4 cells that still lose to Triton
+### 仍然输给 Triton 的 4 个点
 
-| model | proj | avg_m | native/triton |
+| 模型 | proj | avg_m | native/triton |
 |---|---|--:|--:|
 | deepseek-v3 | fc2 | 256 | **0.853** |
 | qwen3-30b-a3b | fc1 | 512 | **0.890** |
 | qwen3-30b-a3b | fc2 | 512 | **0.926** |
 | deepseek-v3 | fc1 | 256 | **0.934** |
 
-All at small `avg_m`. **These are not caused by this work** — the same cells
-lose in the hoisted calibre too, so it is flydsl's GEMM and not the transpose
-read. Wave quantisation has been **disproven** as the mechanism
-(`docs/05-optimization-log.md` §5.4) and the real cause is **unknown**.
+全在小 `avg_m`。**这些不是本次工作造成的** —— 同样这几个点在 hoist 口径下一样
+输，所以问题在 flydsl 的 GEMM 上，不在转置读上。wave quantization 作为机制
+已被**证伪**（`docs/05-optimization-log.md` §5.4），**真实原因未知**。
 
-If you are wiring this into a dispatcher, an autotuning selector will route
-around them; a hard pin to flydsl will not.
+如果你要把它接进 dispatcher：autotune 选择器会自己绕开这几个点，硬 pin
+flydsl 则不会。
 
-### The worst native-vs-hoist point, explained
+### 原生 vs hoist 最差的那个点，已定位
 
-**gpt-oss fc2 dgrad @ avg_m=2048 = 0.872.** Cause identified and it is **not the
-transpose read**: `_pick_config` returns `tile_n=192` here, and TDM's
-`pad_interval` must be a power of two, so a 192-wide transposing B stage cannot
-be built at all. The native path falls back to 256×256×64 while hoist keeps the
-192 tile.
+**gpt-oss fc2 dgrad @ avg_m=2048 = 0.872。** 原因已经查明，而且**不是转置读**：
+`_pick_config` 在这里返回 `tile_n=192`，而 TDM 的 `pad_interval` 必须是 2 的幂，
+所以 192 宽的转置 B stage 根本建不出来。原生路径退回 256×256×64，而 hoist 用得
+上 192 的 tile。
 
-What is being given up is a tile that `_pick_config`'s own docstring flags as
-**fitted, mechanism not established, "the highest extrapolation risk in this
-function."**
+让掉的是什么值得一提：192 那条规则被 `_pick_config` 自己的 docstring 标为
+**fitted、机制未确立、"the highest extrapolation risk in this function"**。
 
 ---
 
-## 7.5 Against the other backends on this part
+## 7.5 与这颗芯片上其它 backend 的对比
 
-Measured with the same driver, same session, same statistics, so these ratios
-carry no methodology difference. (Verified separately: re-measuring the Triton
-baseline under the changed statistics gives a ratio of **1.0000** over 72
-points.)
+用同一个驱动、同一个 session、同样的统计方法测量，所以这些比值里不掺方法论
+差异。（另行验证过：用改动后的统计方法重测 Triton baseline，72 个点上比值
+**1.0000**。）
 
-| direction | FlyDSL | Triton | hipBLASLt | FlyDSL/Triton | FlyDSL/hipBLASLt |
+| 方向 | FlyDSL | Triton | hipBLASLt | FlyDSL/Triton | FlyDSL/hipBLASLt |
 |---|--:|--:|--:|---|---|
-| fwd | **1342.4** | 1134.0 | 813.6 | **1.202×** (0.793–1.657) | **1.912×** (0.965–3.395) |
-| dgrad (hoist calibre) | **1355.3** | 1197.0 | 64.3 | **1.165×** (0.771–1.643) | **21.34×** |
-| wgrad | **1232.7** | 624.1 | 64.6 | **1.998×** (1.776–2.295) | **18.89×** |
-| dgrad (per-call transpose) | 390.2 | 1197.0 | 64.3 | **0.324×** | 5.85× |
+| fwd | **1342.4** | 1134.0 | 813.6 | **1.202×**（0.793–1.657） | **1.912×**（0.965–3.395） |
+| dgrad（hoist 口径） | **1355.3** | 1197.0 | 64.3 | **1.165×**（0.771–1.643） | **21.34×** |
+| wgrad | **1232.7** | 624.1 | 64.6 | **1.998×**（1.776–2.295） | **18.89×** |
+| dgrad（per-call 转置） | 390.2 | 1197.0 | 64.3 | **0.324×** | 5.85× |
 
-*(This table is from the earlier round — see the cross-section warning in §7.0.
-Use it for ratios, not for absolute comparison with §7.1–7.3.)*
+*（这张表来自更早的一轮 —— 见 §7.0 的跨段警告。用它看比值，不要拿来和
+§7.1–7.3 做绝对对比。）*
 
-**wgrad is the cleanest and largest win: all 24 points faster, 1.78×–2.30×, no
-exceptions.** It is also precisely where Triton is weakest (625 TF/s mean,
-12.4 % MFU — the only real soft spot in the Triton baseline), and the two
-calibres are naturally comparable.
+**wgrad 是最干净也最大的胜利：全部 24 个点都快，1.78×–2.30×，无一例外。**
+而这恰恰是 Triton 最弱的地方（均值 625 TF/s、12.4% MFU —— Triton baseline 里
+唯一真正的短板），而且两边口径天然可比。
 
-**fwd and dgrad are moderate wins, not sweeps.** Of 48 fwd/dgrad points FlyDSL
-is faster on 38, clearly slower on 8, level on 2. The losses concentrate at
-**batch=1** (mean 1.15× at batch=1 vs 1.27–1.31× at batch=4) and at small N·K.
+**fwd 和 dgrad 是温和的胜利，不是横扫。** 48 个 fwd/dgrad 点里 FlyDSL 快 38 个、
+明确慢 8 个、持平 2 个。失分集中在 **batch=1**（batch=1 时均值 1.15×，
+batch=4 时 1.27–1.31×）以及中小 N·K 的形状。
 
-**The last row is the one that justified this whole project.** Without the native
-pipeline and without hoisting, dgrad ran at **0.324× Triton** — three times
-slower than not using this kernel at all.
+**最后一行才是这整个项目的理由。** 没有原生流水线、也不 hoist 的话，dgrad 跑在
+**Triton 的 0.324×** —— 比根本不用这个 kernel 还慢三倍。
 
 ---
 
-## 7.6 What was not measured
+## 7.6 没有测的东西
 
-- **Cross-session reproducibility.** Everything here is one session per round.
-- **Multi-GPU, and the production backend registry path.** All measurements go
-  through a standalone dispatch entry, not `BackendType.FLYDSL`.
-- **fp8 / fp16.**
-- **`inplace_add_to_out`** (Megatron-fused wgrad), which both FlyDSL backends
-  decline.
-- **`masked_k` on the NN path** — the entry has no such parameter. It *is*
-  verified on wgrad, including padded pools with `valid % tile_k != 0` and
-  poisoned dead rows (finite `1e4` and `NaN`, 8 points each, all passing at the
-  noise floor).
+- **跨 session 的可复现性。** 这里的一切都是每轮一个 session。
+- **多卡，以及生产 backend registry 路径。** 所有测量都走 standalone 分发入口，
+  不是 `BackendType.FLYDSL`。
+- **fp8 / fp16。**
+- **`inplace_add_to_out`**（Megatron 融合 wgrad），两个 FlyDSL backend 都主动
+  decline。
+- **NN 路径上的 `masked_k`** —— 该入口没有这个参数。它在 wgrad 上*已经*验证过，
+  包括 `valid % tile_k != 0` 的 padded pool 和被毒化的死行（finite `1e4` 与
+  `NaN` 各 8 个点，全部在噪声底通过）。

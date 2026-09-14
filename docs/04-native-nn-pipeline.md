@@ -1,75 +1,70 @@
-# 4. The native NN pipeline
+# 4. 原生 NN 流水线
 
-What was built, how it was verified, and where the remaining 2.1 % went.
+做了什么、怎么验证的、剩下那 2.1% 去哪了。
 
-**Result:** dgrad reads `b[G,K,N]` in place. No transposed weight copy anywhere.
-Correctness is **bitwise identical** to the hoisted-transpose calibre on all 48
-rows, and fwd/wgrad are **bitwise identical** to the pre-change kernel.
+**结果：** dgrad 原样读取 `b[G,K,N]`。任何地方都没有转置权重副本。正确性在全部
+48 行上与 hoist 口径**逐位相同**，fwd/wgrad 与改动前的 kernel **逐位相同**。
 
 ---
 
-## 4.1 The shape of the change
+## 4.1 改动的形状
 
-One tile body, one boolean — the same organisation gfx950 uses (`a_transpose`),
-here called `b_lds_transpose`. **Not a third kernel.**
+一个 tile body、一个布尔开关 —— 与 gfx950 的组织方式相同（它叫
+`a_transpose`，这里叫 `b_lds_transpose`）。**不是第三个 kernel。**
 
 ```
-                     NT (fwd)              NN native (dgrad)        wgrad (variable-K)
-  A operand      ds_read_b128           ds_read_b128  ← same      ds_load_tr16_b128
-  B operand      ds_read_b128           ds_load_tr16_b128         ds_load_tr16_b128
+                     NT (fwd)              NN 原生 (dgrad)          wgrad (variable-K)
+  A 操作数        ds_read_b128           ds_read_b128  ← 相同      ds_load_tr16_b128
+  B 操作数        ds_read_b128           ds_load_tr16_b128         ds_load_tr16_b128
   B LDS stage    [tile_n][tile_k]       [tile_k][tile_n]          [tile_k][out_cols]
 ```
 
-The NN pipeline is the first one to **mix** the two loaders in a single tile
-body: wgrad transposes both operands, NT transposes neither, NN transposes only
-B. That mixing is the one genuinely new thing; everything else is transplanted.
+NN 流水线是第一个在单个 tile body 里**混用**两种加载器的：wgrad 两个操作数都
+转置，NT 两个都不转置，NN 只转置 B。这个混用是唯一真正新的东西；其余都是
+移植过来的。
 
-### Line accounting
+### 代码行数账
 
-Whole file: **+499 / −52**, of which **321 non-comment lines added**.
+整个文件：**+499 / −52**，其中**新增 321 行非注释代码**。
 
-| | lines | where it came from |
+| | 行数 | 来源 |
 |---|--:|---|
-| device-side tile body | **125** | all inside `if const_expr(b_lds_transpose):` |
-| host side | 196 | new entry path, `_pick_config_nn`, `_nn_b_pad`, `nn_native_unsupported_reason` |
-| A operand, `fx.gemm` calls, epilogue, grouped control | **0** | untouched |
+| device 侧 tile body | **125** | 全部在 `if const_expr(b_lds_transpose):` 分支内 |
+| host 侧 | 196 | 新入口路径、`_pick_config_nn`、`_nn_b_pad`、`nn_native_unsupported_reason` |
+| A 操作数、`fx.gemm` 调用、epilogue、grouped 控制逻辑 | **0** | 未动 |
 
-Transplanted from wgrad, essentially verbatim:
+从 wgrad 基本原样搬过来的部分：
 
-| piece | wgrad source |
+| 部件 | wgrad 来源 |
 |---|---|
-| B LDS stage geometry `[tile_k][tile_n]` + `LDS_B_ROW` | stage setup |
-| B descriptor rebuilt per k-tile, row offset folded into base, `imm_offset=0` | `issue()` |
-| per-lane transpose-read base (`l8` / `hi8` / `kgrp`) and `_frag` / `_tr` | `b_lane` |
-| ragged-N `blk_n_eff` / `n_back` back-off window | the TN over-read fix |
+| B 的 LDS stage 几何 `[tile_k][tile_n]` + `LDS_B_ROW` | stage 初始化 |
+| B 描述符每 k-tile 重建、行偏移折进 base、`imm_offset=0` | `issue()` |
+| per-lane 转置读基址（`l8` / `hi8` / `kgrp`）与 `_frag` / `_tr` | `b_lane` |
+| ragged-N 的 `blk_n_eff` / `n_back` 退让窗口 | TN 越读修复 |
 
-The two hazards those last two rows address are the TDM traps in
-`docs/01-architecture.md` §1.4. wgrad had already paid for both **in this tile
-orientation**, which is the single biggest reason this was a week and not a
-month.
+最后两行对应的那两个坑，就是 `docs/01-architecture.md` §1.4 里的 TDM 陷阱。
+wgrad 已经**在这个 tile 朝向下**为两者付过账，这是整件事花了一周而不是一个月
+的最大原因。
 
 ---
 
-## 4.2 Lane semantics: measured first, built second
+## 4.2 lane 语义：先实测，后动手
 
-The ISA investigation flagged the dgrad lane mapping as **[INFERRED]** and said
-the derivation chain was short but unverified. Step one of implementation was
-`probes/probe_nn_frag.py`, which makes it **[MEASURED]**.
+ISA 调研把 dgrad 的 lane 映射标为 **[推断]**，并说明推导链虽短但未经验证。
+实现的第一步就是 `probes/probe_nn_frag.py`，把它变成 **[实测]**。
 
-Design of the probe, since the details matter:
+探针的设计，细节很重要：
 
-- LDS is filled by a **real TDM copy**, not by hand — the thing under test is
-  the whole path, not the instruction in isolation.
-- Fill values are **bf16 bit patterns** `0x2000 + flat_index`, all normal finite
-  numbers. Small-integer fills can pass for the wrong reason once denormal
-  flushing or rounding is involved.
-- **Two independent criteria.** (a) each lane's 16 elements match the closed-form
-  prediction; (b) the same data staged the NT way and read with plain
-  `ds_read_b128` must come out **bitwise identical**. Criterion (b) does not
-  depend on the derivation being correct, which is the point.
+- LDS 由**真正的 TDM 拷贝**填充，不是手工填。被测的是整条路径，不是孤立的
+  指令。
+- 填充值是 **bf16 位模式** `0x2000 + flat_index`，全部是 normal finite 数。
+  一旦涉及 denormal flush 或舍入，小整数填充可能因为错误的原因而通过。
+- **两条独立判据。**（a）每条 lane 的 16 个元素对上闭式预测；（b）同一份数据
+  按 NT 方式 stage 后用普通 `ds_read_b128` 读出，必须**逐位相同**。判据（b）
+  不依赖推导是否正确 —— 这正是设置它的意义。
 
-**Result: 4 tile geometries (32×64 / 64×128 / 128×64 / 64×64), 44 fragments ×
-32 lanes × 16 elements, all bitwise correct.**
+**结果：4 种 tile 几何（32×64 / 64×128 / 128×64 / 64×64）、44 个 fragment ×
+32 lane × 16 元素，全部逐位通过。**
 
 ```
 lane  0: n=[0]   k=[0..7, 16..23]
@@ -77,176 +72,155 @@ lane  1: n=[1]   k=[0..7, 16..23]
 lane 31: n=[15]  k=[8..15, 24..31]
 ```
 
-### wgrad's transpose vs dgrad's transpose — the same instruction, measured
+### wgrad 的转置 vs dgrad 的转置 —— 同一条指令，实测确认
 
-**Bit for bit identical behaviour.** `ds_load_tr16_b128` is pure data movement:
-it sees 8 lanes each supplying an address to 8 consecutive 16-bit elements, and
-it **does not know or care** whether those elements are tokens or reduction
-indices.
+**行为逐位相同。** `ds_load_tr16_b128` 是纯数据搬运：它看到的只是 8 条 lane
+各给一个地址、各指向 8 个连续的 16-bit 元素，它**不知道也不关心**那些元素代表
+token 还是 reduction index。
 
 | | wgrad | dgrad (NN) |
 |---|---|---|
-| LDS row = | token m (reduction) | reduction k |
-| LDS column = | output axis | output axis n |
-| row stride | `tile_m*2+pad` / `tile_n*2+pad` | `tile_n*2+pad` |
-| what gets transposed | the activation's token axis | the weight's reduction axis |
-| **lane mapping** | **identical** | **identical** |
-| both operands transposed? | yes | **no** — B only; A stays on plain `ds_read_b128` |
+| LDS 行 = | token m（归约） | reduction k |
+| LDS 列 = | 输出轴 | 输出轴 n |
+| 行距 | `tile_m*2+pad` / `tile_n*2+pad` | `tile_n*2+pad` |
+| 转置的是 | 激活的 token 轴 | 权重的归约轴 |
+| **lane 映射** | **相同** | **相同** |
+| 两个操作数都转置吗 | 是 | **否** —— 只有 B；A 仍走普通 `ds_read_b128` |
 
-So "wgrad transposes activations, NN transposes weights" is **not a distinction
-at the ISA level**. It is a distinction in what the caller means by the two axes,
-and that meaning is absent from the generated code.
+所以"wgrad 转激活、NN 转权重"**在 ISA 层面不是一个区别**。它是调用方赋予两个轴
+的含义上的区别，而这个含义在生成的代码里并不存在。
 
 ---
 
-## 4.3 Correctness
+## 4.3 正确性
 
-`benchmarks/check_full.py` loads **both** the shipped kernel and the pre-change
-reference into one process, so "no regression" is a comparison between two
-implementations rather than each being re-checked against a reference they could
-drift from together.
+`benchmarks/check_full.py` 在一个进程里同时加载**改动后的 kernel 和改动前的
+reference**，所以"没有回归"是两个实现之间的比对，而不是各自对着一个可能一起
+漂移的参考复算。
 
-The numerical reference is an **fp32 per-group matmul, judged host-side in
-float64**. Not device fp64: **[MEASURED]** device fp64 matmul on this part was
-**wrong 11 times out of 12** as a reference.
+数值参考是 **fp32 逐组 matmul，在 host 侧用 float64 判定**。不用 device fp64：
+**[实测]** 这颗芯片上 device fp64 matmul 作为参考**12 次错 11 次**。
 
-**48 rows = 24 shapes × {balanced, imbalanced groups}, all passing:**
+**48 行 = 24 个 shape × {均衡分组, 不均衡分组}，全部通过：**
 
-| check | result |
+| 检查 | 结果 |
 |---|---|
-| dgrad `rel_fro` vs fp32 reference (4th call) | max **1.6622e-03**, threshold 1e-2 |
-| bf16 quantisation floor, same row (`rel_fro(bf16(ref), ref)`) | max **1.6622e-03** |
-| dgrad native vs hoisted calibre | **48/48 bitwise identical** (max\|Δ\| = 0) |
-| fwd vs the pre-change kernel | **48/48 bitwise identical** |
-| wgrad vs the pre-change kernel | **48/48 bitwise identical** |
+| dgrad `rel_fro` vs fp32 参考（第 4 次调用） | 最大 **1.6622e-03**，门槛 1e-2 |
+| 同一行的 bf16 量化底噪（`rel_fro(bf16(ref), ref)`） | 最大 **1.6622e-03** |
+| dgrad 原生 vs hoist 口径 | **48/48 逐位相同**（最大绝对差 = 0） |
+| fwd vs 改动前的 kernel | **48/48 逐位相同** |
+| wgrad vs 改动前的 kernel | **48/48 逐位相同** |
 | NaN / Inf | 0 |
-| rows taking the native path | 48/48 |
-| call 1 vs call 4 | identical |
+| 走到原生路径的行数 | 48/48 |
+| 第 1 次调用 vs 第 4 次调用 | 相同 |
 
-Read the first two rows together: they agree to the **last digit**, which means
-the entire error is the cost of storing the result as bf16 and **the kernel
-contributes no arithmetic error of its own**. That is a stronger statement than
-"within tolerance".
+前两行要合起来读：它们**末位相同**，意味着全部误差都来自把结果存成 bf16，
+**kernel 本身没有引入任何算术误差**。这比"在容差内"是强得多的陈述。
 
-Coverage worth calling out explicitly:
+值得点名的覆盖：
 
-- **`N == K`** (gpt-oss fc2, 2880×2880) — the case where a shape assertion cannot
-  distinguish `b` from `b_nt`. 6 rows, all pass.
-- **imbalanced groups** including an **empty expert (0 rows)** and a 3-row expert.
-- **ragged output axis** (`N_out = 2880` against `tile_n = 256`, exercising the
-  `n_back` back-off).
-- **small M** (`avg_m = 128`) and **non-power-of-two K** (2880).
+- **`N == K`**（gpt-oss fc2，2880×2880）—— 形状断言无法区分 `b` 和 `b_nt` 的
+  那种情形。6 行全过。
+- **不均衡分组**，含**空 expert（0 行）**和 3 行的极短 expert。
+- **ragged 输出轴**（`N_out = 2880` 对 `tile_n = 256` 不整除，走 `n_back`
+  退让）。
+- **小 M**（`avg_m = 128`）与**非 2 的幂的 K**（2880）。
 
-`probes/smoke_nn.py` additionally covers `G=1`, the minimum `K == N == 256`
-shape, and distributions like `lens=[1, 2047, 0, 33, 4096, 129]` — all bitwise
-identical.
+`probes/smoke_nn.py` 另外覆盖 `G=1`、最小的 `K == N == 256` shape、以及
+`lens=[1, 2047, 0, 33, 4096, 129]` 这类分布 —— 同样全部逐位相同。
 
 ---
 
-## 4.4 The shape gate
+## 4.4 shape 门槛
 
-`nn_native_unsupported_reason(N, K, tile_n, tile_k)` returns `None` or a
-sentence. A shape that misses **falls back** to materialising the transpose with
-a one-shot warning; it does **not** raise, so the API contract is unbroken.
+`nn_native_unsupported_reason(N, K, tile_n, tile_k)` 返回 `None` 或一句说明。
+不满足的 shape 会**回退**到物化转置并给一次性警告；它**不 raise**，所以 API
+契约不破。
 
-| condition | why |
+| 条件 | 原因 |
 |---|---|
-| `K % tile_k == 0` | same constraint the NT path has: the K loop is a compile-time tile count |
-| `tile_n` a power of two | the B stage row width `tile_n*2` is the TDM `pad_interval`, which hardware requires to be a power of two |
-| **`N % 8 == 0`** | **not a performance guard.** Below this the transpose-read column base is misaligned and the instruction **silently degrades to a plain non-transposing load** — wrong answers that look right. Hard gate. |
-| `N >= tile_n` | the ragged back-off window needs a whole tile to retreat into |
+| `K % tile_k == 0` | 与 NT 路径同样的约束：K 循环是编译期的 tile 计数 |
+| `tile_n` 是 2 的幂 | B stage 行宽 `tile_n*2` 就是 TDM 的 `pad_interval`，硬件要求它是 2 的幂 |
+| **`N % 8 == 0`** | **不是性能门槛。** 低于这个，转置读的列基址会错位，而该指令会**静默退化成不转置的普通 load** —— 得到看起来对、实际错的结果。硬门槛。 |
+| `N >= tile_n` | ragged 退让窗口需要有一整个 tile 可退 |
 
-All 24 delivery shapes satisfy all four; 48/48 rows took the native path.
+24 个交付 shape 全部满足这四条；48/48 行都走了原生路径。
 
 ---
 
-## 4.5 Where the remaining 2.1 % went
+## 4.5 剩下那 2.1% 去哪了
 
-Like-for-like against the hoisted calibre, same process, interleaved point by
-point, the native pipeline is **0.979** — 2.1 % slower on the GEMM itself. This
-is the number most worth being sceptical about, so it was answered from the
-**generated assembly** rather than from a hypothesis.
+同进程、逐点交错、like-for-like 对 hoist 口径，原生流水线是 **0.979** ——
+GEMM 本身慢 2.1%。这是最该被质疑的数字，所以用**生成的汇编**而不是假设来回答。
 
-`benchmarks/dump_stats.py` compiles both paths for one shape (256×256×128,
-gpt-oss fc1) and diffs them:
+`benchmarks/dump_stats.py` 把两条路径在同一个 shape 上编译出来对比
+（256×256×128，gpt-oss fc1）：
 
-| | NT (hoist) | native NN |
+| | NT (hoist) | 原生 NN |
 |---|--:|--:|
 | VGPR | 791 | **790** |
 | VGPR / SGPR spill | 0 / 0 | **0 / 0** |
 | scratch | 0 | **0** |
-| WMMA instructions | 512 | **512** |
-| LDS read instructions | 256 (all `ds_read_b128`) | **256** (128 plain + 128 transposing) |
+| WMMA 指令 | 512 | **512** |
+| LDS 读指令 | 256（全部 `ds_read_b128`） | **256**（128 普通 + 128 转置） |
 | VALU | 853 | 846 |
 | SALU / wait | 672 | **602** |
-| total instructions | 2378 | **2301** |
+| 总指令 | 2378 | **2301** |
 
-**Register pressure, spilling and occupancy are all excluded** — the native path
-emits *fewer* instructions. What remains can only be the per-instruction cost of
-the transposing read itself (LDS crossbar / bank behaviour). Not code bloat, not
-occupancy.
+**寄存器压力、spill、占用率全部被排除** —— 原生路径发出的指令反而*更少*。
+剩下的只能是转置读本身的单指令代价（LDS 交叉开关 / bank 行为）。不是代码膨胀，
+也不是 occupancy。
 
-Two findings came out of chasing it, and both are in
-`docs/05-optimization-log.md` because they are tuning results rather than
-pipeline structure:
+追查过程中得到两个发现，它们被放在 `docs/05-optimization-log.md`，因为属于
+调优结果而不是流水线结构：
 
-- **LDS row stride residue is worth 6.5 %** — `LDS_B_ROW % 64 == 32` wins, and
-  the upstream default `LDS_PAD = 16` lands on the *wrong* side. Mechanism not
-  established; a bank-conflict model predicts the exact opposite.
-- **`tile_n=128` with `tile_k=64` is a bad combination** for the transposing
-  read (geomean 0.896 over 54 cells), while `tile_n=128` with `tile_k=128` is
-  fine. It is the combination, not the tile width.
+- **LDS 行距的残数值 6.5%** —— `LDS_B_ROW % 64 == 32` 才对，而上游默认的
+  `LDS_PAD = 16` 恰好落在**错的**一侧。机制未确立；一个 bank 冲突模型给出的
+  预测正好相反。
+- **`tile_n=128` 配 `tile_k=64` 是转置读的坏组合**（54 格上几何均值 0.896），
+  而 `tile_n=128` 配 `tile_k=128` 没问题。坏的是**组合**，不是 tile 宽度。
 
-And one non-finding, recorded so nobody re-tries it: **`b_imm_walk`** (build B's
-descriptor once and walk the reduction axis with `imm_offset` instead of
-rebuilding per k-tile) made **no measurable difference** — 0.985 vs 0.990, noise.
-The validated per-k-tile rebuild was kept rather than trading it for a form that
-is easier to get wrong around extents.
+还有一个非发现，记下来免得有人再试：**`b_imm_walk`**（B 描述符只建一次、
+用 `imm_offset` 走归约轴，而不是每 k-tile 重建）**没有可测量的差异** ——
+0.985 vs 0.990，噪声量级。于是保留了已验证的每 k-tile 重建，没有为了一个
+更容易在 extent 上出错的写法去换它。
 
 ---
 
-## 4.6 What is not done
+## 4.6 没做的事
 
-Honest list of the gaps.
+诚实的缺口清单。
 
-1. **`avg_m < 1536` still sometimes loses to Triton**, on 4 of 24 dgrad cells.
-   Unrelated to the transpose and unchanged by this work — the same cells lose in
-   the hoisted calibre too. Wave quantisation has been **disproven** as the
-   mechanism. **The real cause is still unknown.**
-2. **The `b_pad` mod-64 rule has no mechanism.** Measurement only.
-3. **The `tile_n=128 + tile_k=64` rule has no mechanism.** Measurement only
-   (54 cells).
-4. **XCD remap is still off** (`num_xcd=1`); the MI455X XCD count remains
-   unconfirmed. See `docs/05-optimization-log.md` for the mixed measurement.
-5. **`masked_k` was not tested on the NN path** — the NN entry has no such
-   parameter.
-6. **No transpose caching, and none planned.** The native path structurally
-   cannot read a stale weight.
-7. **The fwd/wgrad tables predate the final tile-rule change.** Those code paths
-   are bitwise unchanged (verified 48/48) and `_pick_config_nn` is only called
-   from the NN entry, but the two rounds ran at different clock ranges — so
-   **do not compare absolute numbers across the three sections**. Within a
-   section, and within the four-calibre table, everything is same-session.
-8. **`cap_cu` is still unimplemented** (non-zero raises), matching the
-   pre-change kernel.
+1. **`avg_m < 1536` 时仍有时输给 Triton**，24 个 dgrad 格子里输 4 个。与转置
+   无关，也未被本次工作改变 —— 同样这几格在 hoist 口径下一样输。wave
+   quantization 作为机制已被**证伪**。**真实原因仍然未知。**
+2. **`b_pad` 的 mod-64 规则没有机制解释。** 只有实测。
+3. **`tile_n=128 + tile_k=64` 规则没有机制解释。** 只有实测（54 格）。
+4. **XCD remap 仍然关着**（`num_xcd=1`）；MI455X 的 XCD 数量仍未确认。混合的
+   实测结果见 `docs/05-optimization-log.md`。
+5. **`masked_k` 没有在 NN 路径上测过** —— NN 入口本来就没有这个参数。
+6. **没有做任何转置缓存，也不打算做。** 原生路径结构上不可能读到过期权重。
+7. **fwd/wgrad 的表早于最后一次 tile 规则改动。** 这两条代码路径逐位未变
+   （48/48 验证过），`_pick_config_nn` 也只被 NN 入口调用，但两轮跑在不同的
+   时钟区间 —— 所以**不要跨三段比较绝对数值**。段内以及四口径表内都是同
+   session 的。
+8. **`cap_cu` 仍未实现**（非零即 raise），与改动前的 kernel 一致。
 
 ---
 
-## 4.7 Consequences for a caller
+## 4.7 对调用方意味着什么
 
-`grouped_gemm_bf16_nn_flydsl_kernel(dout, b, offs)` now needs **no `b_nt` and
-materialises nothing**. `b` keeps its `[G, K, N]` meaning and the signature is
-unchanged, so an existing caller moves from the bad side to the good side
-**without editing a line** — and the
-`PRIMUS_TURBO_GFX1250_FLYDSL_GG_TRANSPOSE_B` gate that existed to keep the
-per-call transpose switched off can be deleted.
+`grouped_gemm_bf16_nn_flydsl_kernel(dout, b, offs)` 现在**不需要 `b_nt`，
+也不物化任何东西**。`b` 保持 `[G, K, N]` 的含义，签名未变，所以既有调用方
+**不改一行**就从坏的一侧换到了好的一侧 —— 而且当初为了关掉 per-call 转置
+而存在的 `PRIMUS_TURBO_GFX1250_FLYDSL_GG_TRANSPOSE_B` gate 可以删掉。
 
-`b_nt` is still accepted, now as a **fast path** rather than a requirement: a
-caller already holding an NT-layout copy short-circuits to the NT kernel.
+`b_nt` 仍然接受，但现在是**快路径**而不是必需品：调用方如果已经握着一份 NT
+布局的副本，会短路到 NT kernel。
 
-Memory saved, per layer, being a copy the size of the local expert weights:
+省下的显存（每层一份与本地专家权重等大的副本）：
 
-| model (EP=8) | fc1 | fc2 | saved per layer |
+| 模型（EP=8） | fc1 | fc2 | 每层省下 |
 |---|--:|--:|--:|
 | gpt-oss-20b | 126.6 MiB | 63.3 MiB | 189.8 MiB |
 | qwen3-30b-a3b | 256.0 MiB | 128.0 MiB | 384.0 MiB |
