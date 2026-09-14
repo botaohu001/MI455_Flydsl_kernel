@@ -37,7 +37,7 @@ Three source files were merged into one:
 
 The section order mirrors the reference exactly.
 
-| MI355 (`kyle/dev`, gfx950) | gfx1250 file | relationship |
+| MI355 (gfx950 dev branch) | gfx1250 file | relationship |
 |---|---|---|
 | AMD `###` copyright header | same | same form, 2026 + the FlyDSL gfx1250 provenance lines |
 | module docstring | same | rewritten: adds the arch-difference table, the dispatch note and the wgrad-calibre warning |
