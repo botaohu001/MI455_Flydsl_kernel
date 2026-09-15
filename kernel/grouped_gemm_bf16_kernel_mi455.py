@@ -2672,6 +2672,13 @@ def nn_native_unsupported_reason(N: int, K: int, tile_n: int, tile_k: int) -> st
 def _nn_native_launch(
     a, b, group_offs, out, cfg, GROUP_M, num_xcd, xcd_band, wmma_b2b, epi_fence, m_tiles,
     b_pad=0, b_imm_walk=0,
+    # Same four HipKittens knobs the NT entry exposes, same defaults, same
+    # meaning -- the native NN path lowers through `_launch_grouped_gemm_bf16_nt`
+    # too, it just sets `b_lds_transpose=1`. Threaded explicitly rather than left
+    # to the caller's `**kw`, because this function's argument list is positional
+    # and the entry point's catch-all does not reach it: that is exactly how a
+    # knob ends up silently ignored while its arm still gets benched.
+    frag_ring=2, sched_style=0, lock_simd=0, split_bar=0,
 ):
     """The native NN launch: ``b`` is consumed as ``[G, K, N]``, no copy made."""
     tile_m, tile_n, tile_k, m_warp, n_warp, num_buffers = cfg
@@ -2716,6 +2723,10 @@ def _nn_native_launch(
             1,  # b_lds_transpose
             b_pad,
             b_imm_walk,
+            frag_ring,
+            sched_style,
+            lock_simd,
+            split_bar,
         )
     )
     return out
@@ -2754,6 +2765,19 @@ def grouped_gemm_bf16_nn_flydsl_kernel(
     # Native-path tuning knobs; see the launcher's parameter comments.
     b_pad: int = 0,
     b_imm_walk: int = 0,
+    # ---- knobs ported from the HipKittens gfx1250 GEMM ladder ---------------
+    # Named parameters, NOT left to `**kw`: the native path below calls
+    # `_nn_native_launch` with a positional argument list, so anything arriving
+    # in `**kw` is dropped on the floor there. A knob that is accepted and then
+    # ignored is worse than one that raises -- its "experimental" arm is the
+    # control measured a second time, and it reports as 1.0000x. Each default
+    # reproduces the shipped code, so an A/B against the default is an A/B
+    # against the shipped kernel; `benchmarks/hk_ab.py::require_knobs` checks for
+    # these by name for this reason.
+    frag_ring: int = 2,
+    sched_style: int = 0,
+    lock_simd: int = 0,
+    split_bar: int = 0,
     **kw,
 ) -> torch.Tensor:
     """Grouped NN: ``out[rows] = a[rows] @ b[g]`` for the expert g owning each row run.
@@ -2836,6 +2860,10 @@ def grouped_gemm_bf16_nn_flydsl_kernel(
                 m_tiles,
                 b_pad,
                 b_imm_walk,
+                frag_ring,
+                sched_style,
+                lock_simd,
+                split_bar,
             )
         key = (N, Kb, cfg[1], cfg[2])
         if key not in _NN_FALLBACK_WARNED:
@@ -2892,6 +2920,12 @@ def grouped_gemm_bf16_nn_flydsl_kernel(
         m_tiles=m_tiles,
         out=out,
         cap_cu=cap_cu,
+        # Forwarded explicitly now that they are named parameters here rather
+        # than members of `**kw`; the NT entry takes them by keyword.
+        frag_ring=frag_ring,
+        sched_style=sched_style,
+        lock_simd=lock_simd,
+        split_bar=split_bar,
         **kw,
     )
 
