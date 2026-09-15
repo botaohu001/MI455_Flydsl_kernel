@@ -81,11 +81,17 @@ expert、`N == K`、ragged 输出轴、以及非 2 的幂的 K。
 
 **如果你要调优这个 kernel** →
 先看 [`docs/05-optimization-log.md`](docs/05-optimization-log.md)，免得重做一遍
-已经被实测证明是负收益的事。
+已经被实测证明是负收益的事；再看
+[`docs/10-disproven-directions.md`](docs/10-disproven-directions.md)，那里有更早
+一轮战役的三十几条判负，以及**三条其实不能外推的历史负结论**。
 
 **如果你正要相信某个 benchmark 数字** →
 [`docs/06-pitfalls.md`](docs/06-pitfalls.md) §6.4。本项目有两次差点把两个
 测量内容不同的东西放在一起比。
+
+**如果你要在一台不锁频的机器上读出一个 +2%** →
+[`docs/09-measurement-methodology.md`](docs/09-measurement-methodology.md)。噪声底
+怎么量、为什么必须用夹心口径、哪些"收益"其实是仪器。
 
 | 文档 | 内容 |
 |---|---|
@@ -96,6 +102,9 @@ expert、`N == K`、ragged 输出轴、以及非 2 的幂的 K。
 | [05-optimization-log](docs/05-optimization-log.md) | 所有试过的手段**含失败的**，每条都有数据：六个让性能变差的方向，五个被证伪的假设 |
 | [06-pitfalls](docs/06-pitfalls.md) | 踩过的坑，其中会产生**看起来对但实际错**的结果的那些标了 ⚠️ |
 | [07-performance](docs/07-performance.md) | 三段全矩阵、四口径对比、以及测量条件 |
+| [08-tuning-playbook](docs/08-tuning-playbook.md) | 上一轮调优战役里**实测有效**的六条：机理、收益、测量条件、外推边界。最普适的一条是 warp 网格 8 波 → 4 波，259 组成对对照 geomean **1.0367** |
+| [09-measurement-methodology](docs/09-measurement-methodology.md) | 怎么让一个 +2% 站得住：噪声底、夹心口径、compile-only 门、归因阶梯。**换芯片换 kernel 都还成立的那部分** |
+| [10-disproven-directions](docs/10-disproven-directions.md) | 三十几条判负，按"编译门 / 代数 / 架构性 / 实测为负 / 噪声底内"五类分开 —— 以及三条**不该被当成永久否决**的历史结论 |
 | [source-reports/](docs/source-reports/) | 原始工作报告存档 —— 一手证据，包括那些后来被推翻的结论 |
 
 目录结构：
@@ -190,6 +199,10 @@ python benchmarks/bench_matrix.py        # 三段矩阵 + 四口径对比
   **[`docs/06-pitfalls.md`](docs/06-pitfalls.md)** —— 可迁移的是方法：
   lane 语义要实测而不是推导；先分辨一个操作是本身慢还是它的*实现*慢；
   每个数字旁边都写清口径。
+- **[`docs/09-measurement-methodology.md`](docs/09-measurement-methodology.md)**
+  和 **[`docs/10-disproven-directions.md`](docs/10-disproven-directions.md)** ——
+  前者整篇与硬件无关（噪声底、对照组、夹心口径、"隔离测量 ≠ 流水里的测量"）；
+  后者的五类判负框架同样可以照搬到别的 kernel 上。
 - **[`asm/`](asm/)** 和 **[`results/`](results/)** —— 没有硬件也能读。
 
 没有 gfx1250 唯一做不了的事，是重跑测量。
