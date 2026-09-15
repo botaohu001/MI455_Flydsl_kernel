@@ -104,7 +104,16 @@ import hk_ab  # noqa: E402
 from hk_ab import CONTROL, KNOBS, SHAPES, VARIANTS, shape_tag  # noqa: E402
 
 KERNEL = str(_REPO / "kernel" / "grouped_gemm_bf16_kernel_mi455.py")
-DEFAULT_VARIANTS = ["control", "frag_ring", "sched_style", "lock_simd", "split_bar", "all"]
+# `split_sched` is deliberately NOT here, and neither is `all` (which contains the
+# same pair).  Both put `split_bar` and `sched_style` on together, which is under a
+# precautionary hold after the 2026-09-15 GPU incident -- see
+# `results/hk/gpu_fault_evidence_20260915.md` and docs/10 section 10.5.3.  The hold
+# is "not ruled out", not "proven harmful", but a documentation warning is not a
+# guard: with the pair in this list, running the gate with no `--variants` at all
+# would compile it.  Naming it explicitly on the command line is the opt-in.
+DEFAULT_VARIANTS = ["control", "frag_ring", "sched_style", "lock_simd", "split_bar"]
+# Pairs that require an explicit, deliberate `--variants` mention.
+HELD_VARIANTS = ("split_sched", "all")
 
 # gfx1250 hardware constants, from docs/01-architecture.md and docs/08 section 8.6.1.
 VGPR_FILE = 131072  # per-SIMD VGPRs; the cliff is min(VGPR_FILE / flat_wg_size, 1024)
@@ -559,6 +568,13 @@ def main() -> int:
                  f"config file or an abbreviation.")
 
     variants = list(dict.fromkeys(args.variants))
+    held = [v for v in variants if v in HELD_VARIANTS]
+    if held:
+        print(f"!! {held} switch on `split_bar` and `sched_style` together, which is under a")
+        print("!! precautionary hold (results/hk/gpu_fault_evidence_20260915.md, docs/10 s10.5.3).")
+        print("!! The hold is 'not ruled out', not 'proven harmful'. This is COMPILE_ONLY so it")
+        print("!! does not launch, but do not carry the result into hk_ab.py without reading the")
+        print("!! evidence file first.\n")
     shapes = SHAPES
     if args.shapes:
         shapes = [s for s in SHAPES if any(f in shape_tag(s) for f in args.shapes)]

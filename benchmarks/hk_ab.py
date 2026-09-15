@@ -114,10 +114,47 @@ VARIANTS: dict[str, dict[str, int]] = {
     "sched_style": dict(CONTROL, sched_style=1),
     "lock_simd": dict(CONTROL, lock_simd=1),
     "split_bar": dict(CONTROL, split_bar=1),
+    # The two knobs that each measured positive, switched on together.  Run as a
+    # FOURTH arm alongside both singles, never on its own: the question is not
+    # "is the pair fast" but "is the pair's ratio the product of the two singles'
+    # ratios", and that is only answerable if all three are measured in the same
+    # session against the same control.
+    #
+    # There is a specific reason not to assume they are orthogonal. Both rewrite
+    # the tail of the same K-tile: `sched_style` replaces the sched_dsrd /
+    # sched_mfma interleave with one `sched_barrier(0)`-fenced burst per
+    # sub-step, and `split_bar` takes the last sub-step out of that sequence
+    # entirely and re-emits it between the barrier's signal and its wait.  With
+    # both on, the sub-step `split_bar` defers is one that `sched_style` has
+    # already fenced off, so the compiler sees a different problem from either
+    # single case.
+    "split_sched": dict(CONTROL, sched_style=1, split_bar=1),
+    # ⚠️ NOT a candidate: `lock_simd` is a measured correctness failure (a race --
+    # docs/10 section 10.5.1) and `frag_ring=3` is a measured 9/9 loss.  Kept only
+    # so the compile gate can still dump the everything-on corner.  Do not put it
+    # in a timing run; its arm cannot pass the correctness gate.
     "all": dict(frag_ring=3, sched_style=1, lock_simd=1, split_bar=1),
 }
 NOISE_VARIANT = "control"
 DEFAULT_VARIANTS = ["control", "frag_ring", "sched_style", "lock_simd", "split_bar"]
+
+# Variants this script refuses to LAUNCH without `--i-have-read-the-hold`.
+#
+# Both entries switch `split_bar` and `sched_style` on together.  On 2026-09-15 the
+# GPU became unusable (device nodes gone, `modprobe -r amdgpu` unkillable, machine
+# reboot required) shortly after a run of that pair.  Attribution is NOT
+# established -- the A/B itself completed normally with its correctness gate fully
+# green, persistent logs hold no record of the fault, the surviving dmesg copy's
+# timestamps contradict the boot records, and the box rebooted seven times that
+# day.  Static analysis of the assembly found no out-of-bounds either.
+#
+# So this is a precautionary hold on an unexplained coincidence, not a verdict.
+# It is enforced in code rather than left to documentation because the cost of
+# being wrong is a machine reboot, and because `lock_simd` already proved that a
+# candidate can pass the compile gate AND this script's correctness gate and still
+# be broken in a way neither can see.
+# Full evidence: `results/hk/gpu_fault_evidence_20260915.md`, docs/10 s10.5.3.
+HELD_VARIANTS: tuple[str, ...] = ("split_sched", "all")
 
 # (model, proj, G, N_fwd, K_fwd, avg_m).  N/K are the **forward** weight dims:
 # w is [G, N, K] and the forward is a[M,K] @ w[g].T.  These are exactly the six
@@ -788,6 +825,12 @@ def main() -> int:
                     help="drop the control-vs-control arm (nothing can then be called a win)")
     ap.add_argument("--force", action="store_true",
                     help="run even though /dev/kfd is held by a foreign process")
+    ap.add_argument("--i-have-read-the-hold", action="store_true",
+                    help=f"launch a held variant ({', '.join(HELD_VARIANTS)}) anyway. These put "
+                         "split_bar and sched_style on together, which is on a precautionary "
+                         "hold after the 2026-09-15 GPU incident. Attribution is not established "
+                         "and static analysis found nothing, but the failure mode was a machine "
+                         "reboot. Read results/hk/gpu_fault_evidence_20260915.md first.")
     ap.add_argument("--verbose", action="store_true")
     args = ap.parse_args()
 
@@ -804,6 +847,27 @@ def main() -> int:
         variants.insert(0, NOISE_VARIANT)
     if not variants:
         sys.exit("!! nothing to measure: --no-noise-floor removed the only selected variant.")
+
+    held = [v for v in variants if v in HELD_VARIANTS]
+    if held and not args.i_have_read_the_hold:
+        sys.exit(
+            f"!! {held} switch on `split_bar` and `sched_style` together, which is under a\n"
+            "   PRECAUTIONARY HOLD and this script will not launch it.\n\n"
+            "   On 2026-09-15 the GPU became unusable shortly after a run of that pair: the\n"
+            "   device nodes disappeared, `modprobe -r amdgpu` wedged in kernel state, and the\n"
+            "   machine had to be rebooted.\n\n"
+            "   Attribution is NOT established, and the evidence is genuinely weak on both\n"
+            "   sides -- the A/B completed normally with 20/20 correctness and biteq, no\n"
+            "   persistent log holds any record of the fault, the surviving dmesg copy is\n"
+            "   timestamped inside a window when the box was powered off, the machine rebooted\n"
+            "   seven times that day, and a full assembly diff found no out-of-bounds access.\n"
+            "   It may well be unrelated. The hold exists because the downside is a reboot and\n"
+            "   nobody has been able to explain the coincidence away either.\n\n"
+            "   Read results/hk/gpu_fault_evidence_20260915.md, then pass\n"
+            "   --i-have-read-the-hold if you still want to measure it.\n"
+        )
+    if held:
+        print(f"!! --i-have-read-the-hold: launching {held} despite the 2026-09-15 hold.\n")
 
     shapes = SHAPES
     if args.shapes:
