@@ -297,10 +297,39 @@ def _workgroup_barrier():
     gpu.barrier()
 
 
+# Barrier id for "every wave in this workgroup". `gpu.barrier()` already lowers
+# to an `s_barrier_signal -1` / `s_barrier_wait -1` pair on gfx1250, so naming it
+# is only needed where the two halves are emitted apart -- see `split_bar`.
+# (The cluster barrier is -3; flydsl spells that one `cluster.CLUSTER_BARRIER_ID`.)
+_WG_BARRIER = -1
+
+
 def _pipeline_fence(outstanding: int = 0):
     """Fused READY+REUSE fence: wait for TDM DMAs, then make LDS visible."""
     tdm_ops.tensor_wait(outstanding)
     gpu.barrier()
+
+
+def _claim_simd():
+    """Remove this wave's post-matrix-op SIMD arbitration pause (SCHED_MODE bit 2).
+
+    By default the SIMD makes a wave pause after it issues a matrix op so a
+    co-resident wave gets the issue slot. Setting this bit lets the wave stream
+    matrix ops back to back instead. Wave state, not a scope: set once, never
+    cleared.
+
+    Distinct from ``rocdl.disable_xdl_arb_stall()``, which writes SCHED_MODE bit
+    **4** and is already exposed as the ``wmma_b2b`` knob (measured -0.1% to
+    +0.1%, i.e. nothing). This is bit **2**, which flydsl does not wrap, so the
+    ``s_setreg`` is emitted here by hand in the same shape as flydsl's bit-4
+    helper.
+
+    hwreg immediate encoding is ``ID | (offset << 6) | ((size - 1) << 11)``;
+    ID 26 is SCHED_MODE, so offset 2 size 1 is ``26 | (2 << 6)`` == 154.
+    """
+    imm_val = _raw(fx.Int32(26 | (2 << 6) | (0 << 11)))
+    val_val = _raw(fx.Int32(1))
+    _llvm.call_intrinsic(None, "llvm.amdgcn.s.setreg", [imm_val, val_val], [], [])
 
 
 # ---------------------------------------------------------------------------
@@ -1430,6 +1459,28 @@ def _launch_grouped_gemm_bf16_nt(
     # never has to clamp -- which is exactly the condition the variable-K kernel
     # could not rely on. Off by default: the rebuild is the validated shape.
     b_imm_walk: Constexpr[int] = 0,
+    # ---- knobs ported from the HipKittens gfx1250 GEMM ladder ---------------
+    # All four default to the value that reproduces the shipped code, so the
+    # control arm of an A/B is the shipped kernel rather than a re-derivation of
+    # it. See the `_compute_body` comment for what each one changes and which
+    # rung it comes from.
+    #
+    # Operand register ring depth R: how many K sub-steps of A/B fragments are
+    # live in registers at once. 2 = shipped. 3 is the ladder's top rung, which
+    # primes two sub-steps ahead of the first matrix op; it only fits because a
+    # 4-wave workgroup gets 1024 VGPRs per lane.
+    frag_ring: Constexpr[int] = 2,
+    # 0 = shipped: fine-grained `sched_dsrd`/`sched_mfma` group barriers pin an
+    #     interleave of LDS reads against matrix ops.
+    # 1 = one burst per sub-step: no group barriers, and a compiler fence
+    #     separates each sub-step's loads from the matrix ops consuming the
+    #     sub-step before it.
+    sched_style: Constexpr[int] = 0,
+    # 1 = claim the SIMD for this wave (SCHED_MODE bit 2). See `_claim_simd`.
+    lock_simd: Constexpr[int] = 0,
+    # 1 = run the K-tile's last sub-step of WMMA inside the workgroup barrier's
+    #     signal-to-wait window instead of before the signal.
+    split_bar: Constexpr[int] = 0,
 ):
     """Grouped NT/NN: ``C[rows] = A[rows] @ B[g].T`` (or ``@ B[g]``). Requires ``K % tile_k == 0``.
 
@@ -1473,6 +1524,15 @@ def _launch_grouped_gemm_bf16_nt(
         raise ValueError("need >= 2 waves so the A and B TDM jobs land on different waves")
     if num_buffers < 2:
         raise ValueError("num_buffers must be >= 2 for the TDM prefetch pipeline")
+    if frag_ring < 2 or frag_ring > K_WS:
+        # R > K_WS would prime sub-steps that do not exist; R < 2 is no pipeline
+        # at all, which is the variant already measured at -10.8% on wgrad.
+        raise ValueError(f"frag_ring must be in [2, K_WS={K_WS}], got {frag_ring}")
+    if split_bar and half_n_skip:
+        # A skipped wave has no deferred sub-step to put in the barrier window,
+        # so the two would need a dead-tile path through `_split_fence`. Not
+        # built: `half_n_skip` is off by default and measured negative anyway.
+        raise ValueError("split_bar and half_n_skip are not supported together")
     if b_lds_transpose:
         # Each of these is a silent-wrong-answer risk rather than a crash, so they
         # are rejected rather than worked around.
@@ -1532,6 +1592,9 @@ def _launch_grouped_gemm_bf16_nt(
     ):
         if const_expr(wmma_b2b):
             rocdl.disable_xdl_arb_stall()
+        if const_expr(lock_simd):
+            # Before any matrix op, and never cleared: this is wave state.
+            _claim_simd()
         K_TILES = i32_k // tile_k
         lda_b = fx.Int64(i32_lda) * EB  # global row strides, in bytes
         ldb_b = fx.Int64(i32_ldb) * EB
@@ -1842,31 +1905,98 @@ def _launch_grouped_gemm_bf16_nt(
                 issue(prefetch_kt % num_buffers, prefetch_kt)
                 rocdl.sched_barrier(0)
 
-        def _compute_body(buf, prefetch_kt):
+        # Sub-steps of operand fragments live in registers at once, and how many
+        # of them are primed before the first matrix op. R = 2 is the shipped
+        # `cur`/`nxt` pair; R = 3 is the HipKittens ladder's top rung, which
+        # calls it "R = 3 register operand ring; 2 sub-steps primed ahead of the
+        # first matrix op".
+        #
+        # The ring is what a 4-wave workgroup buys. A lane's register budget is
+        # 131072 / flat_workgroup_size, so 128 threads gets 1024 -- and one
+        # sub-step here is `wmma_m_rep * 8 + wmma_n_rep * 8` VGPRs, 128 of them
+        # at 256x256 / 2x2. The shipped NN kernel measures 790 VGPR, so a third
+        # slot lands near 918 against the 1024 cap; the reference kernel reports
+        # 910 at the same geometry, which is the same number.
+        R = frag_ring
+        n_prime = min(R - 1, K_WS)
+
+        def _compute_body(buf, prefetch_kt, defer_last=False):
             b_ref = _b_ref(buf)
-            cur = _load_ks(buf, b_ref, 0)
+            ring = [None] * R
+            for p in range_constexpr(n_prime):
+                ring[p] = _load_ks(buf, b_ref, p)
+            n_mma = K_WS - 1 if const_expr(defer_last) else K_WS
             for ks in range_constexpr(K_WS):
-                nxt = _load_ks(buf, b_ref, ks + 1) if const_expr(ks + 1 < K_WS) else None
-                rocdl.s_wait_dscnt(KS_DS if const_expr(nxt is not None) else 0)
+                load_ks = ks + R - 1
+                if const_expr(load_ks < K_WS):
+                    ring[load_ks % R] = _load_ks(buf, b_ref, load_ks)
+                # `dscnt` retires in order, so leaving the sub-steps that are
+                # still in flight outstanding is enough to know this one landed.
+                # That is min(K_WS - 1 - ks, R - 1) sub-steps of KS_DS reads,
+                # which tapers to a full drain on the last sub-step.
+                inflight = min(K_WS - 1 - ks, R - 1)
+                if const_expr(sched_style):
+                    # A fence between this sub-step's loads and the matrix ops
+                    # consuming the sub-step before it. Without it the compiler
+                    # interleaves the two, and when it cannot tell which
+                    # in-flight load feeds the next matrix op it gives up and
+                    # drains the whole operand pipeline. The reference kernel
+                    # reports that taking those drains from 17 per K-block to 2.
+                    rocdl.sched_barrier(0)
+                rocdl.s_wait_dscnt(inflight * KS_DS)
                 if const_expr(ks == 0 and prefetch_kt is not None and wmma_m_rep > 1):
                     rocdl.sched_barrier(0)
                     issue(prefetch_kt % num_buffers, prefetch_kt)
                     rocdl.sched_barrier(0)
-                _mma_ks(cur)
+                if const_expr(ks < n_mma):
+                    _mma_ks(ring[ks % R])
+                if const_expr(sched_style):
+                    rocdl.sched_barrier(0)
                 if const_expr(ks == 0 and prefetch_kt is not None and wmma_m_rep == 1):
                     rocdl.sched_barrier(0)
                     issue(prefetch_kt % num_buffers, prefetch_kt)
                     rocdl.sched_barrier(0)
-                if const_expr(nxt is not None):
-                    cur = nxt
-            rocdl.sched_dsrd(KS_DS)  # prologue group
-            for _ks in range_constexpr(K_WS):
-                if const_expr(_ks < K_WS - 1):
-                    rocdl.sched_dsrd(KS_DS)
-                rocdl.sched_mfma(n_acc)
+            if const_expr(not sched_style):
+                # Mirrors the emission order above: the primed loads as one
+                # group, then one load group and one matrix group per sub-step.
+                rocdl.sched_dsrd(n_prime * KS_DS)  # prologue group
+                for _ks in range_constexpr(n_mma):
+                    if const_expr(_ks + R - 1 < K_WS):
+                        rocdl.sched_dsrd(KS_DS)
+                    rocdl.sched_mfma(n_acc)
             rocdl.sched_barrier(0)
+            # The caller runs this inside the barrier window when deferring.
+            return ring[(K_WS - 1) % R] if const_expr(defer_last) else None
 
-        def compute_ktile(buf, prefetch_kt):
+        def _split_fence(tail, outstanding):
+            """Run the deferred sub-step inside the barrier's signal-to-wait window.
+
+            `gpu.barrier()` already lowers to an `s_barrier_signal -1` /
+            `s_barrier_wait -1` pair on this part, so the split itself is not the
+            change: in the shipped ISA those two land one instruction apart. The
+            change is putting a sub-step's worth of matrix ops between them, so a
+            wave that reaches the rendezvous early keeps issuing through the skew
+            instead of sitting on it. Here the skew is structural -- only waves 0
+            and 1 issue the TDM descriptors, so the others always arrive early.
+
+            Legal because the deferred op reads registers only: the LDS stage it
+            was loaded from is fully drained by the `s_wait_dscnt(0)` that closes
+            the loop body, and a barrier orders waves without saying anything
+            about memory either way.
+
+            The fences are load-bearing, not cosmetic -- without them the
+            compiler sinks the matrix ops straight back out of the window and the
+            answer stays correct, so the loss is silent.
+            """
+            tdm_ops.tensor_wait(outstanding)
+            rocdl.sched_barrier(0)
+            rocdl.s_barrier_signal(_WG_BARRIER)
+            rocdl.sched_barrier(0)
+            _mma_ks(tail)
+            rocdl.sched_barrier(0)
+            rocdl.s_barrier_wait(_WG_BARRIER)
+
+        def compute_ktile(buf, prefetch_kt, defer_last=False):
             """Skip the LDS reads and the WMMA for columns past ``n_valid``.
 
             On a ragged-N boundary tile the kernel still computes the full
@@ -1893,24 +2023,48 @@ def _launch_grouped_gemm_bf16_nt(
             parameter.
             """
             if const_expr(not half_n_skip):
-                _compute_body(buf, prefetch_kt)
+                return _compute_body(buf, prefetch_kt, defer_last)
             elif n_valid > wnb:
                 _compute_body(buf, prefetch_kt)
             else:
                 _prefetch_only(prefetch_kt)
+            return None
 
         for i in range_constexpr(num_buffers - 1):
             issue(i, i)
         n_steady = K_TILES - (num_buffers - 1)
-        for kt in range(n_steady):
-            buf = _bidx(_buf_ptr(kt % num_buffers))
+        if const_expr(split_bar):
+            # The fence moves to the bottom of the body, because the sub-step it
+            # has to hold in its window belongs to the K-tile that just ran. The
+            # barrier count is unchanged: the loop gains one in the prologue and
+            # gives one back on the last K-tile, where the epilogue's entry fence
+            # is already the next rendezvous.
             _pipeline_fence(outstanding=TDM_PW * (num_buffers - 2))
-            compute_ktile(buf, kt + (num_buffers - 1))
-        for j in range_constexpr(num_buffers - 1):
-            kt = n_steady + j
-            buf = _bidx(_buf_ptr(kt % num_buffers))
-            _pipeline_fence(outstanding=TDM_PW * (num_buffers - 2 - j))
-            compute_ktile(buf, None)
+            for kt in range(n_steady):
+                buf = _bidx(_buf_ptr(kt % num_buffers))
+                tail = compute_ktile(buf, kt + (num_buffers - 1), defer_last=True)
+                # Guards the next K-tile's stage, so it carries the outstanding
+                # count that K-tile's own fence used to carry. In steady state
+                # that is the same constant, including across the phase boundary.
+                _split_fence(tail, TDM_PW * (num_buffers - 2))
+            for j in range_constexpr(num_buffers - 1):
+                kt = n_steady + j
+                buf = _bidx(_buf_ptr(kt % num_buffers))
+                tail = compute_ktile(buf, None, defer_last=True)
+                if const_expr(j < num_buffers - 2):
+                    _split_fence(tail, TDM_PW * (num_buffers - 3 - j))
+                else:
+                    _mma_ks(tail)  # no successor stage to guard
+        else:
+            for kt in range(n_steady):
+                buf = _bidx(_buf_ptr(kt % num_buffers))
+                _pipeline_fence(outstanding=TDM_PW * (num_buffers - 2))
+                compute_ktile(buf, kt + (num_buffers - 1))
+            for j in range_constexpr(num_buffers - 1):
+                kt = n_steady + j
+                buf = _bidx(_buf_ptr(kt % num_buffers))
+                _pipeline_fence(outstanding=TDM_PW * (num_buffers - 2 - j))
+                compute_ktile(buf, None)
 
         # ---- epilogue: accumulators -> LDS -> TDM store, clamped twice --------
         accs = [c_frags[idx].load() for idx in range_constexpr(n_acc)]
@@ -2259,6 +2413,13 @@ def grouped_gemm_bf16_nt_flydsl_kernel(
     out: torch.Tensor | None = None,
     # gfx950 parameter accepted for signature compatibility; see below.
     cap_cu: int = 0,
+    # ---- knobs ported from the HipKittens gfx1250 GEMM ladder ---------------
+    # Each default reproduces the shipped code, so an A/B against the default is
+    # an A/B against the shipped kernel. See the launcher for what they change.
+    frag_ring: int = 2,
+    sched_style: int = 0,
+    lock_simd: int = 0,
+    split_bar: int = 0,
 ) -> torch.Tensor:
     """Grouped NT forward: ``out[rows] = a[rows] @ b[g].T`` for the expert owning each run.
 
@@ -2358,6 +2519,12 @@ def grouped_gemm_bf16_nt_flydsl_kernel(
             inkernel_scan,
             half_n_skip,
             0,  # b_lds_transpose: NT reads B reduction-contiguous
+            0,  # b_pad: only meaningful for a transposed B stage
+            0,  # b_imm_walk: likewise
+            frag_ring,
+            sched_style,
+            lock_simd,
+            split_bar,
         )
     )
     return out

@@ -1,0 +1,2772 @@
+{
+ "kernel": "kernel/grouped_gemm_bf16_kernel_mi455.py",
+ "dump_root": "asm/hk_gate",
+ "control": {
+  "frag_ring": 2,
+  "sched_style": 0,
+  "lock_simd": 0,
+  "split_bar": 0
+ },
+ "variants": {
+  "control": {
+   "frag_ring": 2,
+   "sched_style": 0,
+   "lock_simd": 0,
+   "split_bar": 0
+  },
+  "frag_ring": {
+   "frag_ring": 3,
+   "sched_style": 0,
+   "lock_simd": 0,
+   "split_bar": 0
+  },
+  "sched_style": {
+   "frag_ring": 2,
+   "sched_style": 1,
+   "lock_simd": 0,
+   "split_bar": 0
+  },
+  "lock_simd": {
+   "frag_ring": 2,
+   "sched_style": 0,
+   "lock_simd": 1,
+   "split_bar": 0
+  },
+  "split_bar": {
+   "frag_ring": 2,
+   "sched_style": 0,
+   "lock_simd": 0,
+   "split_bar": 1
+  },
+  "all": {
+   "frag_ring": 3,
+   "sched_style": 1,
+   "lock_simd": 1,
+   "split_bar": 1
+  }
+ },
+ "gate": {
+  "vgpr_file": 131072,
+  "vgpr_per_lane_cap": 1024,
+  "lds_per_cu": 327680,
+  "spill_fail": 32,
+  "strict_spill": false
+ },
+ "rows": [
+  {
+   "pas": "nt",
+   "shape": "gpt-oss-20b.fc1.G4.N5760.K2880.m1024",
+   "variant": "control",
+   "kwargs": {
+    "frag_ring": 2,
+    "sched_style": 0,
+    "lock_simd": 0,
+    "split_bar": 0
+   },
+   "tile": [
+    256,
+    256,
+    64,
+    2,
+    2,
+    3
+   ],
+   "lds_arena_calc": 221184,
+   "wg_per_cu": 1,
+   "asm": "asm/hk_gate/control/nt.gpt-oss-20b.fc1.G4.N5760.K2880.m1024/kernel_grouped_nt_0/21_final_isa.s",
+   "meta": {
+    "vgpr_count": 849,
+    "sgpr_count": 54,
+    "vgpr_spill_count": 0,
+    "sgpr_spill_count": 0,
+    "group_segment_fixed_size": 0,
+    "private_segment_fixed_size": 0,
+    "max_flat_workgroup_size": 128,
+    "kernarg_segment_size": 52,
+    "reqd_workgroup_size": [
+     128,
+     1,
+     1
+    ],
+    "target": "amdgcn-amd-amdhsa--gfx1250"
+   },
+   "flat_workgroup_size": 128,
+   "vgpr_budget": 1024,
+   "vgpr_margin": 175,
+   "mnemonics": {
+    "v_wmma": 384,
+    "ds_load_b128": 192,
+    "ds_load_tr16_b128": 0,
+    "ds_store_b128": 64,
+    "s_wait_dscnt": 7,
+    "s_wait_tensorcnt": 5,
+    "s_wait_loadcnt": 0,
+    "s_wait_kmcnt": 6,
+    "s_wait_alu": 147,
+    "s_delay_alu": 40,
+    "s_wait_xcnt": 3,
+    "s_barrier": 0,
+    "s_barrier_signal": 5,
+    "s_barrier_wait": 5,
+    "s_setreg": 2,
+    "scratch_store": 0,
+    "scratch_load": 0,
+    "tensor_load_to_lds": 6,
+    "tensor_store_from_lds": 1,
+    "_total_instr": 2503
+   },
+   "ktile": {
+    "k_ws": 2,
+    "n_acc": 64,
+    "bodies": 3,
+    "dscnt_per_ktile": 2.3333333333333335,
+    "dscnt_per_substep": 1.1666666666666667
+   },
+   "sync": {
+    "sync_narrow": 28,
+    "sync_wide": 218,
+    "ratio_narrow": 0.07291666666666667,
+    "ratio_wide": 0.5677083333333334
+   },
+   "asm_sha256": "0dd95f0065239ee1bbb89af8f32ff005d0e0ef78148fb6b3d5e9bd5b9a483b50",
+   "verdict": "PASS",
+   "reasons": [],
+   "same_asm_as_control": true
+  },
+  {
+   "pas": "nt",
+   "shape": "gpt-oss-20b.fc1.G4.N5760.K2880.m1024",
+   "variant": "frag_ring",
+   "kwargs": {
+    "frag_ring": 3,
+    "sched_style": 0,
+    "lock_simd": 0,
+    "split_bar": 0
+   },
+   "tile": [
+    256,
+    256,
+    64,
+    2,
+    2,
+    3
+   ],
+   "lds_arena_calc": 221184,
+   "wg_per_cu": 1,
+   "verdict": "ERROR",
+   "reasons": [
+    "ValueError: frag_ring must be in [2, K_WS=2], got 3"
+   ],
+   "same_asm_as_control": false
+  },
+  {
+   "pas": "nt",
+   "shape": "gpt-oss-20b.fc1.G4.N5760.K2880.m1024",
+   "variant": "sched_style",
+   "kwargs": {
+    "frag_ring": 2,
+    "sched_style": 1,
+    "lock_simd": 0,
+    "split_bar": 0
+   },
+   "tile": [
+    256,
+    256,
+    64,
+    2,
+    2,
+    3
+   ],
+   "lds_arena_calc": 221184,
+   "wg_per_cu": 1,
+   "asm": "asm/hk_gate/sched_style/nt.gpt-oss-20b.fc1.G4.N5760.K2880.m1024/kernel_grouped_nt_0/21_final_isa.s",
+   "meta": {
+    "vgpr_count": 849,
+    "sgpr_count": 54,
+    "vgpr_spill_count": 0,
+    "sgpr_spill_count": 0,
+    "group_segment_fixed_size": 0,
+    "private_segment_fixed_size": 0,
+    "max_flat_workgroup_size": 128,
+    "kernarg_segment_size": 52,
+    "reqd_workgroup_size": [
+     128,
+     1,
+     1
+    ],
+    "target": "amdgcn-amd-amdhsa--gfx1250"
+   },
+   "flat_workgroup_size": 128,
+   "vgpr_budget": 1024,
+   "vgpr_margin": 175,
+   "mnemonics": {
+    "v_wmma": 384,
+    "ds_load_b128": 192,
+    "ds_load_tr16_b128": 0,
+    "ds_store_b128": 64,
+    "s_wait_dscnt": 24,
+    "s_wait_tensorcnt": 5,
+    "s_wait_loadcnt": 0,
+    "s_wait_kmcnt": 6,
+    "s_wait_alu": 168,
+    "s_delay_alu": 41,
+    "s_wait_xcnt": 3,
+    "s_barrier": 0,
+    "s_barrier_signal": 5,
+    "s_barrier_wait": 5,
+    "s_setreg": 2,
+    "scratch_store": 0,
+    "scratch_load": 0,
+    "tensor_load_to_lds": 6,
+    "tensor_store_from_lds": 1,
+    "_total_instr": 2493
+   },
+   "ktile": {
+    "k_ws": 2,
+    "n_acc": 64,
+    "bodies": 3,
+    "dscnt_per_ktile": 8.0,
+    "dscnt_per_substep": 4.0
+   },
+   "sync": {
+    "sync_narrow": 45,
+    "sync_wide": 257,
+    "ratio_narrow": 0.1171875,
+    "ratio_wide": 0.6692708333333334
+   },
+   "asm_sha256": "17a9073193ccbed087861e3e5344761a5dacbb18b09c952151238b3063ebb6f0",
+   "verdict": "PASS",
+   "reasons": [],
+   "same_asm_as_control": false
+  },
+  {
+   "pas": "nt",
+   "shape": "gpt-oss-20b.fc1.G4.N5760.K2880.m1024",
+   "variant": "lock_simd",
+   "kwargs": {
+    "frag_ring": 2,
+    "sched_style": 0,
+    "lock_simd": 1,
+    "split_bar": 0
+   },
+   "tile": [
+    256,
+    256,
+    64,
+    2,
+    2,
+    3
+   ],
+   "lds_arena_calc": 221184,
+   "wg_per_cu": 1,
+   "asm": "asm/hk_gate/lock_simd/nt.gpt-oss-20b.fc1.G4.N5760.K2880.m1024/kernel_grouped_nt_0/21_final_isa.s",
+   "meta": {
+    "vgpr_count": 849,
+    "sgpr_count": 54,
+    "vgpr_spill_count": 0,
+    "sgpr_spill_count": 0,
+    "group_segment_fixed_size": 0,
+    "private_segment_fixed_size": 0,
+    "max_flat_workgroup_size": 128,
+    "kernarg_segment_size": 52,
+    "reqd_workgroup_size": [
+     128,
+     1,
+     1
+    ],
+    "target": "amdgcn-amd-amdhsa--gfx1250"
+   },
+   "flat_workgroup_size": 128,
+   "vgpr_budget": 1024,
+   "vgpr_margin": 175,
+   "mnemonics": {
+    "v_wmma": 384,
+    "ds_load_b128": 192,
+    "ds_load_tr16_b128": 0,
+    "ds_store_b128": 64,
+    "s_wait_dscnt": 7,
+    "s_wait_tensorcnt": 5,
+    "s_wait_loadcnt": 5,
+    "s_wait_kmcnt": 1,
+    "s_wait_alu": 154,
+    "s_delay_alu": 39,
+    "s_wait_xcnt": 4,
+    "s_barrier": 0,
+    "s_barrier_signal": 5,
+    "s_barrier_wait": 5,
+    "s_setreg": 3,
+    "scratch_store": 0,
+    "scratch_load": 0,
+    "tensor_load_to_lds": 6,
+    "tensor_store_from_lds": 1,
+    "_total_instr": 2520
+   },
+   "ktile": {
+    "k_ws": 2,
+    "n_acc": 64,
+    "bodies": 3,
+    "dscnt_per_ktile": 2.3333333333333335,
+    "dscnt_per_substep": 1.1666666666666667
+   },
+   "sync": {
+    "sync_narrow": 28,
+    "sync_wide": 225,
+    "ratio_narrow": 0.07291666666666667,
+    "ratio_wide": 0.5859375
+   },
+   "asm_sha256": "5eb51f5c98b28004eafd8ba2eaaca0c17ca0707b7695e7940e05eeba5f8eb300",
+   "verdict": "PASS",
+   "reasons": [],
+   "same_asm_as_control": false
+  },
+  {
+   "pas": "nt",
+   "shape": "gpt-oss-20b.fc1.G4.N5760.K2880.m1024",
+   "variant": "split_bar",
+   "kwargs": {
+    "frag_ring": 2,
+    "sched_style": 0,
+    "lock_simd": 0,
+    "split_bar": 1
+   },
+   "tile": [
+    256,
+    256,
+    64,
+    2,
+    2,
+    3
+   ],
+   "lds_arena_calc": 221184,
+   "wg_per_cu": 1,
+   "asm": "asm/hk_gate/split_bar/nt.gpt-oss-20b.fc1.G4.N5760.K2880.m1024/kernel_grouped_nt_0/21_final_isa.s",
+   "meta": {
+    "vgpr_count": 849,
+    "sgpr_count": 54,
+    "vgpr_spill_count": 0,
+    "sgpr_spill_count": 0,
+    "group_segment_fixed_size": 0,
+    "private_segment_fixed_size": 0,
+    "max_flat_workgroup_size": 128,
+    "kernarg_segment_size": 52,
+    "reqd_workgroup_size": [
+     128,
+     1,
+     1
+    ],
+    "target": "amdgcn-amd-amdhsa--gfx1250"
+   },
+   "flat_workgroup_size": 128,
+   "vgpr_budget": 1024,
+   "vgpr_margin": 175,
+   "mnemonics": {
+    "v_wmma": 384,
+    "ds_load_b128": 192,
+    "ds_load_tr16_b128": 0,
+    "ds_store_b128": 64,
+    "s_wait_dscnt": 7,
+    "s_wait_tensorcnt": 5,
+    "s_wait_loadcnt": 0,
+    "s_wait_kmcnt": 6,
+    "s_wait_alu": 148,
+    "s_delay_alu": 42,
+    "s_wait_xcnt": 3,
+    "s_barrier": 0,
+    "s_barrier_signal": 5,
+    "s_barrier_wait": 5,
+    "s_setreg": 2,
+    "scratch_store": 0,
+    "scratch_load": 0,
+    "tensor_load_to_lds": 6,
+    "tensor_store_from_lds": 1,
+    "_total_instr": 2569
+   },
+   "ktile": {
+    "k_ws": 2,
+    "n_acc": 64,
+    "bodies": 3,
+    "dscnt_per_ktile": 2.3333333333333335,
+    "dscnt_per_substep": 1.1666666666666667
+   },
+   "sync": {
+    "sync_narrow": 28,
+    "sync_wide": 221,
+    "ratio_narrow": 0.07291666666666667,
+    "ratio_wide": 0.5755208333333334
+   },
+   "asm_sha256": "0861128a3aae1104379f0d6664e0fa9a6c6524637899f5a21c5265f6dcc0ab3b",
+   "verdict": "PASS",
+   "reasons": [],
+   "same_asm_as_control": false
+  },
+  {
+   "pas": "nt",
+   "shape": "gpt-oss-20b.fc1.G4.N5760.K2880.m1024",
+   "variant": "all",
+   "kwargs": {
+    "frag_ring": 3,
+    "sched_style": 1,
+    "lock_simd": 1,
+    "split_bar": 1
+   },
+   "tile": [
+    256,
+    256,
+    64,
+    2,
+    2,
+    3
+   ],
+   "lds_arena_calc": 221184,
+   "wg_per_cu": 1,
+   "verdict": "ERROR",
+   "reasons": [
+    "ValueError: frag_ring must be in [2, K_WS=2], got 3"
+   ],
+   "same_asm_as_control": false
+  },
+  {
+   "pas": "nt",
+   "shape": "gpt-oss-20b.fc2.G4.N2880.K2880.m2048",
+   "variant": "control",
+   "kwargs": {
+    "frag_ring": 2,
+    "sched_style": 0,
+    "lock_simd": 0,
+    "split_bar": 0
+   },
+   "tile": [
+    128,
+    192,
+    64,
+    2,
+    2,
+    3
+   ],
+   "lds_arena_calc": 138240,
+   "wg_per_cu": 2,
+   "asm": "asm/hk_gate/control/nt.gpt-oss-20b.fc2.G4.N2880.K2880.m2048/kernel_grouped_nt_0/21_final_isa.s",
+   "meta": {
+    "vgpr_count": 420,
+    "sgpr_count": 54,
+    "vgpr_spill_count": 0,
+    "sgpr_spill_count": 0,
+    "group_segment_fixed_size": 0,
+    "private_segment_fixed_size": 0,
+    "max_flat_workgroup_size": 128,
+    "kernarg_segment_size": 52,
+    "reqd_workgroup_size": [
+     128,
+     1,
+     1
+    ],
+    "target": "amdgcn-amd-amdhsa--gfx1250"
+   },
+   "flat_workgroup_size": 128,
+   "vgpr_budget": 1024,
+   "vgpr_margin": 604,
+   "mnemonics": {
+    "v_wmma": 144,
+    "ds_load_b128": 120,
+    "ds_load_tr16_b128": 0,
+    "ds_store_b128": 24,
+    "s_wait_dscnt": 8,
+    "s_wait_tensorcnt": 5,
+    "s_wait_loadcnt": 0,
+    "s_wait_kmcnt": 6,
+    "s_wait_alu": 83,
+    "s_delay_alu": 41,
+    "s_wait_xcnt": 3,
+    "s_barrier": 0,
+    "s_barrier_signal": 5,
+    "s_barrier_wait": 5,
+    "s_setreg": 2,
+    "scratch_store": 0,
+    "scratch_load": 0,
+    "tensor_load_to_lds": 6,
+    "tensor_store_from_lds": 1,
+    "_total_instr": 1489
+   },
+   "ktile": {
+    "k_ws": 2,
+    "n_acc": 24,
+    "bodies": 3,
+    "dscnt_per_ktile": 2.6666666666666665,
+    "dscnt_per_substep": 1.3333333333333333
+   },
+   "sync": {
+    "sync_narrow": 29,
+    "sync_wide": 156,
+    "ratio_narrow": 0.2013888888888889,
+    "ratio_wide": 1.0833333333333333
+   },
+   "asm_sha256": "6fe6d17b62087e770cc1654bcaa10dab63405932768947ba3afda37ddc0afc48",
+   "verdict": "PASS",
+   "reasons": [],
+   "same_asm_as_control": true
+  },
+  {
+   "pas": "nt",
+   "shape": "gpt-oss-20b.fc2.G4.N2880.K2880.m2048",
+   "variant": "frag_ring",
+   "kwargs": {
+    "frag_ring": 3,
+    "sched_style": 0,
+    "lock_simd": 0,
+    "split_bar": 0
+   },
+   "tile": [
+    128,
+    192,
+    64,
+    2,
+    2,
+    3
+   ],
+   "lds_arena_calc": 138240,
+   "wg_per_cu": 2,
+   "verdict": "ERROR",
+   "reasons": [
+    "ValueError: frag_ring must be in [2, K_WS=2], got 3"
+   ],
+   "same_asm_as_control": false
+  },
+  {
+   "pas": "nt",
+   "shape": "gpt-oss-20b.fc2.G4.N2880.K2880.m2048",
+   "variant": "sched_style",
+   "kwargs": {
+    "frag_ring": 2,
+    "sched_style": 1,
+    "lock_simd": 0,
+    "split_bar": 0
+   },
+   "tile": [
+    128,
+    192,
+    64,
+    2,
+    2,
+    3
+   ],
+   "lds_arena_calc": 138240,
+   "wg_per_cu": 2,
+   "asm": "asm/hk_gate/sched_style/nt.gpt-oss-20b.fc2.G4.N2880.K2880.m2048/kernel_grouped_nt_0/21_final_isa.s",
+   "meta": {
+    "vgpr_count": 420,
+    "sgpr_count": 54,
+    "vgpr_spill_count": 0,
+    "sgpr_spill_count": 0,
+    "group_segment_fixed_size": 0,
+    "private_segment_fixed_size": 0,
+    "max_flat_workgroup_size": 128,
+    "kernarg_segment_size": 52,
+    "reqd_workgroup_size": [
+     128,
+     1,
+     1
+    ],
+    "target": "amdgcn-amd-amdhsa--gfx1250"
+   },
+   "flat_workgroup_size": 128,
+   "vgpr_budget": 1024,
+   "vgpr_margin": 604,
+   "mnemonics": {
+    "v_wmma": 144,
+    "ds_load_b128": 120,
+    "ds_load_tr16_b128": 0,
+    "ds_store_b128": 24,
+    "s_wait_dscnt": 17,
+    "s_wait_tensorcnt": 5,
+    "s_wait_loadcnt": 0,
+    "s_wait_kmcnt": 6,
+    "s_wait_alu": 80,
+    "s_delay_alu": 43,
+    "s_wait_xcnt": 3,
+    "s_barrier": 0,
+    "s_barrier_signal": 5,
+    "s_barrier_wait": 5,
+    "s_setreg": 2,
+    "scratch_store": 0,
+    "scratch_load": 0,
+    "tensor_load_to_lds": 6,
+    "tensor_store_from_lds": 1,
+    "_total_instr": 1500
+   },
+   "ktile": {
+    "k_ws": 2,
+    "n_acc": 24,
+    "bodies": 3,
+    "dscnt_per_ktile": 5.666666666666667,
+    "dscnt_per_substep": 2.8333333333333335
+   },
+   "sync": {
+    "sync_narrow": 38,
+    "sync_wide": 164,
+    "ratio_narrow": 0.2638888888888889,
+    "ratio_wide": 1.1388888888888888
+   },
+   "asm_sha256": "b95fcce22ee07ca61954f1cbd9be4df862f22d4a989597e55bfae3a8d8f60baa",
+   "verdict": "PASS",
+   "reasons": [],
+   "same_asm_as_control": false
+  },
+  {
+   "pas": "nt",
+   "shape": "gpt-oss-20b.fc2.G4.N2880.K2880.m2048",
+   "variant": "lock_simd",
+   "kwargs": {
+    "frag_ring": 2,
+    "sched_style": 0,
+    "lock_simd": 1,
+    "split_bar": 0
+   },
+   "tile": [
+    128,
+    192,
+    64,
+    2,
+    2,
+    3
+   ],
+   "lds_arena_calc": 138240,
+   "wg_per_cu": 2,
+   "asm": "asm/hk_gate/lock_simd/nt.gpt-oss-20b.fc2.G4.N2880.K2880.m2048/kernel_grouped_nt_0/21_final_isa.s",
+   "meta": {
+    "vgpr_count": 420,
+    "sgpr_count": 54,
+    "vgpr_spill_count": 0,
+    "sgpr_spill_count": 0,
+    "group_segment_fixed_size": 0,
+    "private_segment_fixed_size": 0,
+    "max_flat_workgroup_size": 128,
+    "kernarg_segment_size": 52,
+    "reqd_workgroup_size": [
+     128,
+     1,
+     1
+    ],
+    "target": "amdgcn-amd-amdhsa--gfx1250"
+   },
+   "flat_workgroup_size": 128,
+   "vgpr_budget": 1024,
+   "vgpr_margin": 604,
+   "mnemonics": {
+    "v_wmma": 144,
+    "ds_load_b128": 120,
+    "ds_load_tr16_b128": 0,
+    "ds_store_b128": 24,
+    "s_wait_dscnt": 8,
+    "s_wait_tensorcnt": 5,
+    "s_wait_loadcnt": 5,
+    "s_wait_kmcnt": 1,
+    "s_wait_alu": 90,
+    "s_delay_alu": 40,
+    "s_wait_xcnt": 4,
+    "s_barrier": 0,
+    "s_barrier_signal": 5,
+    "s_barrier_wait": 5,
+    "s_setreg": 3,
+    "scratch_store": 0,
+    "scratch_load": 0,
+    "tensor_load_to_lds": 6,
+    "tensor_store_from_lds": 1,
+    "_total_instr": 1506
+   },
+   "ktile": {
+    "k_ws": 2,
+    "n_acc": 24,
+    "bodies": 3,
+    "dscnt_per_ktile": 2.6666666666666665,
+    "dscnt_per_substep": 1.3333333333333333
+   },
+   "sync": {
+    "sync_narrow": 29,
+    "sync_wide": 163,
+    "ratio_narrow": 0.2013888888888889,
+    "ratio_wide": 1.1319444444444444
+   },
+   "asm_sha256": "880957a44f0520844ff51a566d1e3295c1521caddae7cbff120947cd25f19e67",
+   "verdict": "PASS",
+   "reasons": [],
+   "same_asm_as_control": false
+  },
+  {
+   "pas": "nt",
+   "shape": "gpt-oss-20b.fc2.G4.N2880.K2880.m2048",
+   "variant": "split_bar",
+   "kwargs": {
+    "frag_ring": 2,
+    "sched_style": 0,
+    "lock_simd": 0,
+    "split_bar": 1
+   },
+   "tile": [
+    128,
+    192,
+    64,
+    2,
+    2,
+    3
+   ],
+   "lds_arena_calc": 138240,
+   "wg_per_cu": 2,
+   "asm": "asm/hk_gate/split_bar/nt.gpt-oss-20b.fc2.G4.N2880.K2880.m2048/kernel_grouped_nt_0/21_final_isa.s",
+   "meta": {
+    "vgpr_count": 420,
+    "sgpr_count": 54,
+    "vgpr_spill_count": 0,
+    "sgpr_spill_count": 0,
+    "group_segment_fixed_size": 0,
+    "private_segment_fixed_size": 0,
+    "max_flat_workgroup_size": 128,
+    "kernarg_segment_size": 52,
+    "reqd_workgroup_size": [
+     128,
+     1,
+     1
+    ],
+    "target": "amdgcn-amd-amdhsa--gfx1250"
+   },
+   "flat_workgroup_size": 128,
+   "vgpr_budget": 1024,
+   "vgpr_margin": 604,
+   "mnemonics": {
+    "v_wmma": 144,
+    "ds_load_b128": 120,
+    "ds_load_tr16_b128": 0,
+    "ds_store_b128": 24,
+    "s_wait_dscnt": 8,
+    "s_wait_tensorcnt": 5,
+    "s_wait_loadcnt": 0,
+    "s_wait_kmcnt": 6,
+    "s_wait_alu": 72,
+    "s_delay_alu": 45,
+    "s_wait_xcnt": 3,
+    "s_barrier": 0,
+    "s_barrier_signal": 5,
+    "s_barrier_wait": 5,
+    "s_setreg": 2,
+    "scratch_store": 0,
+    "scratch_load": 0,
+    "tensor_load_to_lds": 6,
+    "tensor_store_from_lds": 1,
+    "_total_instr": 1521
+   },
+   "ktile": {
+    "k_ws": 2,
+    "n_acc": 24,
+    "bodies": 3,
+    "dscnt_per_ktile": 2.6666666666666665,
+    "dscnt_per_substep": 1.3333333333333333
+   },
+   "sync": {
+    "sync_narrow": 29,
+    "sync_wide": 149,
+    "ratio_narrow": 0.2013888888888889,
+    "ratio_wide": 1.0347222222222223
+   },
+   "asm_sha256": "e9eb626a3007d730285d556cfa4794cddba9ecf5246e1ce0c8d0355297683227",
+   "verdict": "PASS",
+   "reasons": [],
+   "same_asm_as_control": false
+  },
+  {
+   "pas": "nt",
+   "shape": "gpt-oss-20b.fc2.G4.N2880.K2880.m2048",
+   "variant": "all",
+   "kwargs": {
+    "frag_ring": 3,
+    "sched_style": 1,
+    "lock_simd": 1,
+    "split_bar": 1
+   },
+   "tile": [
+    128,
+    192,
+    64,
+    2,
+    2,
+    3
+   ],
+   "lds_arena_calc": 138240,
+   "wg_per_cu": 2,
+   "verdict": "ERROR",
+   "reasons": [
+    "ValueError: frag_ring must be in [2, K_WS=2], got 3"
+   ],
+   "same_asm_as_control": false
+  },
+  {
+   "pas": "nt",
+   "shape": "qwen3-30b-a3b.fc1.G16.N4096.K2048.m2048",
+   "variant": "control",
+   "kwargs": {
+    "frag_ring": 2,
+    "sched_style": 0,
+    "lock_simd": 0,
+    "split_bar": 0
+   },
+   "tile": [
+    256,
+    256,
+    128,
+    2,
+    2,
+    2
+   ],
+   "lds_arena_calc": 278528,
+   "wg_per_cu": 1,
+   "asm": "asm/hk_gate/control/nt.qwen3-30b-a3b.fc1.G16.N4096.K2048.m2048/kernel_grouped_nt_0/21_final_isa.s",
+   "meta": {
+    "vgpr_count": 791,
+    "sgpr_count": 54,
+    "vgpr_spill_count": 0,
+    "sgpr_spill_count": 0,
+    "group_segment_fixed_size": 0,
+    "private_segment_fixed_size": 0,
+    "max_flat_workgroup_size": 128,
+    "kernarg_segment_size": 52,
+    "reqd_workgroup_size": [
+     128,
+     1,
+     1
+    ],
+    "target": "amdgcn-amd-amdhsa--gfx1250"
+   },
+   "flat_workgroup_size": 128,
+   "vgpr_budget": 1024,
+   "vgpr_margin": 233,
+   "mnemonics": {
+    "v_wmma": 512,
+    "ds_load_b128": 256,
+    "ds_load_tr16_b128": 0,
+    "ds_store_b128": 64,
+    "s_wait_dscnt": 17,
+    "s_wait_tensorcnt": 4,
+    "s_wait_loadcnt": 0,
+    "s_wait_kmcnt": 8,
+    "s_wait_alu": 108,
+    "s_delay_alu": 34,
+    "s_wait_xcnt": 2,
+    "s_barrier": 0,
+    "s_barrier_signal": 4,
+    "s_barrier_wait": 4,
+    "s_setreg": 2,
+    "scratch_store": 0,
+    "scratch_load": 0,
+    "tensor_load_to_lds": 4,
+    "tensor_store_from_lds": 1,
+    "_total_instr": 2378
+   },
+   "ktile": {
+    "k_ws": 4,
+    "n_acc": 64,
+    "bodies": 2,
+    "dscnt_per_ktile": 8.5,
+    "dscnt_per_substep": 2.125
+   },
+   "sync": {
+    "sync_narrow": 37,
+    "sync_wide": 181,
+    "ratio_narrow": 0.072265625,
+    "ratio_wide": 0.353515625
+   },
+   "asm_sha256": "5f59d8c230cf4cec36e5debfd19d2fe0261da8782c3e61fb9e4f992f2ae6b730",
+   "verdict": "PASS",
+   "reasons": [],
+   "same_asm_as_control": true
+  },
+  {
+   "pas": "nt",
+   "shape": "qwen3-30b-a3b.fc1.G16.N4096.K2048.m2048",
+   "variant": "frag_ring",
+   "kwargs": {
+    "frag_ring": 3,
+    "sched_style": 0,
+    "lock_simd": 0,
+    "split_bar": 0
+   },
+   "tile": [
+    256,
+    256,
+    128,
+    2,
+    2,
+    2
+   ],
+   "lds_arena_calc": 278528,
+   "wg_per_cu": 1,
+   "asm": "asm/hk_gate/frag_ring/nt.qwen3-30b-a3b.fc1.G16.N4096.K2048.m2048/kernel_grouped_nt_0/21_final_isa.s",
+   "meta": {
+    "vgpr_count": 919,
+    "sgpr_count": 54,
+    "vgpr_spill_count": 0,
+    "sgpr_spill_count": 0,
+    "group_segment_fixed_size": 0,
+    "private_segment_fixed_size": 0,
+    "max_flat_workgroup_size": 128,
+    "kernarg_segment_size": 52,
+    "reqd_workgroup_size": [
+     128,
+     1,
+     1
+    ],
+    "target": "amdgcn-amd-amdhsa--gfx1250"
+   },
+   "flat_workgroup_size": 128,
+   "vgpr_budget": 1024,
+   "vgpr_margin": 105,
+   "mnemonics": {
+    "v_wmma": 512,
+    "ds_load_b128": 256,
+    "ds_load_tr16_b128": 0,
+    "ds_store_b128": 64,
+    "s_wait_dscnt": 13,
+    "s_wait_tensorcnt": 4,
+    "s_wait_loadcnt": 0,
+    "s_wait_kmcnt": 8,
+    "s_wait_alu": 107,
+    "s_delay_alu": 34,
+    "s_wait_xcnt": 2,
+    "s_barrier": 0,
+    "s_barrier_signal": 4,
+    "s_barrier_wait": 4,
+    "s_setreg": 2,
+    "scratch_store": 0,
+    "scratch_load": 0,
+    "tensor_load_to_lds": 4,
+    "tensor_store_from_lds": 1,
+    "_total_instr": 2366
+   },
+   "ktile": {
+    "k_ws": 4,
+    "n_acc": 64,
+    "bodies": 2,
+    "dscnt_per_ktile": 6.5,
+    "dscnt_per_substep": 1.625
+   },
+   "sync": {
+    "sync_narrow": 33,
+    "sync_wide": 176,
+    "ratio_narrow": 0.064453125,
+    "ratio_wide": 0.34375
+   },
+   "asm_sha256": "1c762018f219d52c282d140339a805007151b2574f27cef01ed991ae357d220f",
+   "verdict": "PASS",
+   "reasons": [],
+   "same_asm_as_control": false
+  },
+  {
+   "pas": "nt",
+   "shape": "qwen3-30b-a3b.fc1.G16.N4096.K2048.m2048",
+   "variant": "sched_style",
+   "kwargs": {
+    "frag_ring": 2,
+    "sched_style": 1,
+    "lock_simd": 0,
+    "split_bar": 0
+   },
+   "tile": [
+    256,
+    256,
+    128,
+    2,
+    2,
+    2
+   ],
+   "lds_arena_calc": 278528,
+   "wg_per_cu": 1,
+   "asm": "asm/hk_gate/sched_style/nt.qwen3-30b-a3b.fc1.G16.N4096.K2048.m2048/kernel_grouped_nt_0/21_final_isa.s",
+   "meta": {
+    "vgpr_count": 791,
+    "sgpr_count": 54,
+    "vgpr_spill_count": 0,
+    "sgpr_spill_count": 0,
+    "group_segment_fixed_size": 0,
+    "private_segment_fixed_size": 0,
+    "max_flat_workgroup_size": 128,
+    "kernarg_segment_size": 52,
+    "reqd_workgroup_size": [
+     128,
+     1,
+     1
+    ],
+    "target": "amdgcn-amd-amdhsa--gfx1250"
+   },
+   "flat_workgroup_size": 128,
+   "vgpr_budget": 1024,
+   "vgpr_margin": 233,
+   "mnemonics": {
+    "v_wmma": 512,
+    "ds_load_b128": 256,
+    "ds_load_tr16_b128": 0,
+    "ds_store_b128": 64,
+    "s_wait_dscnt": 26,
+    "s_wait_tensorcnt": 4,
+    "s_wait_loadcnt": 0,
+    "s_wait_kmcnt": 8,
+    "s_wait_alu": 127,
+    "s_delay_alu": 35,
+    "s_wait_xcnt": 2,
+    "s_barrier": 0,
+    "s_barrier_signal": 4,
+    "s_barrier_wait": 4,
+    "s_setreg": 2,
+    "scratch_store": 0,
+    "scratch_load": 0,
+    "tensor_load_to_lds": 4,
+    "tensor_store_from_lds": 1,
+    "_total_instr": 2352
+   },
+   "ktile": {
+    "k_ws": 4,
+    "n_acc": 64,
+    "bodies": 2,
+    "dscnt_per_ktile": 13.0,
+    "dscnt_per_substep": 3.25
+   },
+   "sync": {
+    "sync_narrow": 46,
+    "sync_wide": 210,
+    "ratio_narrow": 0.08984375,
+    "ratio_wide": 0.41015625
+   },
+   "asm_sha256": "ee57ac9454d25d59f34cb73597d4df24b0abda53fb09ca9c2164fa7f8af85e37",
+   "verdict": "PASS",
+   "reasons": [],
+   "same_asm_as_control": false
+  },
+  {
+   "pas": "nt",
+   "shape": "qwen3-30b-a3b.fc1.G16.N4096.K2048.m2048",
+   "variant": "lock_simd",
+   "kwargs": {
+    "frag_ring": 2,
+    "sched_style": 0,
+    "lock_simd": 1,
+    "split_bar": 0
+   },
+   "tile": [
+    256,
+    256,
+    128,
+    2,
+    2,
+    2
+   ],
+   "lds_arena_calc": 278528,
+   "wg_per_cu": 1,
+   "asm": "asm/hk_gate/lock_simd/nt.qwen3-30b-a3b.fc1.G16.N4096.K2048.m2048/kernel_grouped_nt_0/21_final_isa.s",
+   "meta": {
+    "vgpr_count": 791,
+    "sgpr_count": 54,
+    "vgpr_spill_count": 0,
+    "sgpr_spill_count": 0,
+    "group_segment_fixed_size": 0,
+    "private_segment_fixed_size": 0,
+    "max_flat_workgroup_size": 128,
+    "kernarg_segment_size": 52,
+    "reqd_workgroup_size": [
+     128,
+     1,
+     1
+    ],
+    "target": "amdgcn-amd-amdhsa--gfx1250"
+   },
+   "flat_workgroup_size": 128,
+   "vgpr_budget": 1024,
+   "vgpr_margin": 233,
+   "mnemonics": {
+    "v_wmma": 512,
+    "ds_load_b128": 256,
+    "ds_load_tr16_b128": 0,
+    "ds_store_b128": 64,
+    "s_wait_dscnt": 17,
+    "s_wait_tensorcnt": 4,
+    "s_wait_loadcnt": 7,
+    "s_wait_kmcnt": 1,
+    "s_wait_alu": 120,
+    "s_delay_alu": 33,
+    "s_wait_xcnt": 2,
+    "s_barrier": 0,
+    "s_barrier_signal": 4,
+    "s_barrier_wait": 4,
+    "s_setreg": 3,
+    "scratch_store": 0,
+    "scratch_load": 0,
+    "tensor_load_to_lds": 4,
+    "tensor_store_from_lds": 1,
+    "_total_instr": 2391
+   },
+   "ktile": {
+    "k_ws": 4,
+    "n_acc": 64,
+    "bodies": 2,
+    "dscnt_per_ktile": 8.5,
+    "dscnt_per_substep": 2.125
+   },
+   "sync": {
+    "sync_narrow": 37,
+    "sync_wide": 192,
+    "ratio_narrow": 0.072265625,
+    "ratio_wide": 0.375
+   },
+   "asm_sha256": "f197af6b0c7bf2954205a655a79b84cced42a2d0c017ce33e458ad7bc933d1c8",
+   "verdict": "PASS",
+   "reasons": [],
+   "same_asm_as_control": false
+  },
+  {
+   "pas": "nt",
+   "shape": "qwen3-30b-a3b.fc1.G16.N4096.K2048.m2048",
+   "variant": "split_bar",
+   "kwargs": {
+    "frag_ring": 2,
+    "sched_style": 0,
+    "lock_simd": 0,
+    "split_bar": 1
+   },
+   "tile": [
+    256,
+    256,
+    128,
+    2,
+    2,
+    2
+   ],
+   "lds_arena_calc": 278528,
+   "wg_per_cu": 1,
+   "asm": "asm/hk_gate/split_bar/nt.qwen3-30b-a3b.fc1.G16.N4096.K2048.m2048/kernel_grouped_nt_0/21_final_isa.s",
+   "meta": {
+    "vgpr_count": 824,
+    "sgpr_count": 54,
+    "vgpr_spill_count": 0,
+    "sgpr_spill_count": 0,
+    "group_segment_fixed_size": 0,
+    "private_segment_fixed_size": 0,
+    "max_flat_workgroup_size": 128,
+    "kernarg_segment_size": 52,
+    "reqd_workgroup_size": [
+     128,
+     1,
+     1
+    ],
+    "target": "amdgcn-amd-amdhsa--gfx1250"
+   },
+   "flat_workgroup_size": 128,
+   "vgpr_budget": 1024,
+   "vgpr_margin": 200,
+   "mnemonics": {
+    "v_wmma": 512,
+    "ds_load_b128": 256,
+    "ds_load_tr16_b128": 0,
+    "ds_store_b128": 64,
+    "s_wait_dscnt": 17,
+    "s_wait_tensorcnt": 4,
+    "s_wait_loadcnt": 0,
+    "s_wait_kmcnt": 8,
+    "s_wait_alu": 121,
+    "s_delay_alu": 35,
+    "s_wait_xcnt": 2,
+    "s_barrier": 0,
+    "s_barrier_signal": 4,
+    "s_barrier_wait": 4,
+    "s_setreg": 2,
+    "scratch_store": 0,
+    "scratch_load": 0,
+    "tensor_load_to_lds": 4,
+    "tensor_store_from_lds": 1,
+    "_total_instr": 2488
+   },
+   "ktile": {
+    "k_ws": 4,
+    "n_acc": 64,
+    "bodies": 2,
+    "dscnt_per_ktile": 8.5,
+    "dscnt_per_substep": 2.125
+   },
+   "sync": {
+    "sync_narrow": 37,
+    "sync_wide": 195,
+    "ratio_narrow": 0.072265625,
+    "ratio_wide": 0.380859375
+   },
+   "asm_sha256": "be1a30a620263dfc2e54356369d5617a7e878ff5694fd33c0c44bff7fba9a19e",
+   "verdict": "PASS",
+   "reasons": [],
+   "same_asm_as_control": false
+  },
+  {
+   "pas": "nt",
+   "shape": "qwen3-30b-a3b.fc1.G16.N4096.K2048.m2048",
+   "variant": "all",
+   "kwargs": {
+    "frag_ring": 3,
+    "sched_style": 1,
+    "lock_simd": 1,
+    "split_bar": 1
+   },
+   "tile": [
+    256,
+    256,
+    128,
+    2,
+    2,
+    2
+   ],
+   "lds_arena_calc": 278528,
+   "wg_per_cu": 1,
+   "asm": "asm/hk_gate/all/nt.qwen3-30b-a3b.fc1.G16.N4096.K2048.m2048/kernel_grouped_nt_0/21_final_isa.s",
+   "meta": {
+    "vgpr_count": 919,
+    "sgpr_count": 54,
+    "vgpr_spill_count": 0,
+    "sgpr_spill_count": 0,
+    "group_segment_fixed_size": 0,
+    "private_segment_fixed_size": 0,
+    "max_flat_workgroup_size": 128,
+    "kernarg_segment_size": 52,
+    "reqd_workgroup_size": [
+     128,
+     1,
+     1
+    ],
+    "target": "amdgcn-amd-amdhsa--gfx1250"
+   },
+   "flat_workgroup_size": 128,
+   "vgpr_budget": 1024,
+   "vgpr_margin": 105,
+   "mnemonics": {
+    "v_wmma": 512,
+    "ds_load_b128": 256,
+    "ds_load_tr16_b128": 0,
+    "ds_store_b128": 64,
+    "s_wait_dscnt": 23,
+    "s_wait_tensorcnt": 4,
+    "s_wait_loadcnt": 7,
+    "s_wait_kmcnt": 1,
+    "s_wait_alu": 115,
+    "s_delay_alu": 38,
+    "s_wait_xcnt": 2,
+    "s_barrier": 0,
+    "s_barrier_signal": 4,
+    "s_barrier_wait": 4,
+    "s_setreg": 3,
+    "scratch_store": 0,
+    "scratch_load": 0,
+    "tensor_load_to_lds": 4,
+    "tensor_store_from_lds": 1,
+    "_total_instr": 2466
+   },
+   "ktile": {
+    "k_ws": 4,
+    "n_acc": 64,
+    "bodies": 2,
+    "dscnt_per_ktile": 11.5,
+    "dscnt_per_substep": 2.875
+   },
+   "sync": {
+    "sync_narrow": 43,
+    "sync_wide": 198,
+    "ratio_narrow": 0.083984375,
+    "ratio_wide": 0.38671875
+   },
+   "asm_sha256": "eec4e4b4978fe83cac1e65ee9c5f14ee205579288d1265a258313cfe56f8bcc3",
+   "verdict": "PASS",
+   "reasons": [],
+   "same_asm_as_control": false
+  },
+  {
+   "pas": "nt",
+   "shape": "qwen3-235b-a22b.fc1.G16.N8192.K4096.m2048",
+   "variant": "control",
+   "kwargs": {
+    "frag_ring": 2,
+    "sched_style": 0,
+    "lock_simd": 0,
+    "split_bar": 0
+   },
+   "tile": [
+    256,
+    256,
+    128,
+    2,
+    2,
+    2
+   ],
+   "lds_arena_calc": 278528,
+   "wg_per_cu": 1,
+   "asm": "asm/hk_gate/control/nt.qwen3-235b-a22b.fc1.G16.N8192.K4096.m2048/kernel_grouped_nt_0/21_final_isa.s",
+   "meta": {
+    "vgpr_count": 791,
+    "sgpr_count": 54,
+    "vgpr_spill_count": 0,
+    "sgpr_spill_count": 0,
+    "group_segment_fixed_size": 0,
+    "private_segment_fixed_size": 0,
+    "max_flat_workgroup_size": 128,
+    "kernarg_segment_size": 52,
+    "reqd_workgroup_size": [
+     128,
+     1,
+     1
+    ],
+    "target": "amdgcn-amd-amdhsa--gfx1250"
+   },
+   "flat_workgroup_size": 128,
+   "vgpr_budget": 1024,
+   "vgpr_margin": 233,
+   "mnemonics": {
+    "v_wmma": 512,
+    "ds_load_b128": 256,
+    "ds_load_tr16_b128": 0,
+    "ds_store_b128": 64,
+    "s_wait_dscnt": 17,
+    "s_wait_tensorcnt": 4,
+    "s_wait_loadcnt": 0,
+    "s_wait_kmcnt": 8,
+    "s_wait_alu": 108,
+    "s_delay_alu": 34,
+    "s_wait_xcnt": 2,
+    "s_barrier": 0,
+    "s_barrier_signal": 4,
+    "s_barrier_wait": 4,
+    "s_setreg": 2,
+    "scratch_store": 0,
+    "scratch_load": 0,
+    "tensor_load_to_lds": 4,
+    "tensor_store_from_lds": 1,
+    "_total_instr": 2378
+   },
+   "ktile": {
+    "k_ws": 4,
+    "n_acc": 64,
+    "bodies": 2,
+    "dscnt_per_ktile": 8.5,
+    "dscnt_per_substep": 2.125
+   },
+   "sync": {
+    "sync_narrow": 37,
+    "sync_wide": 181,
+    "ratio_narrow": 0.072265625,
+    "ratio_wide": 0.353515625
+   },
+   "asm_sha256": "d9995a102257eef34348aa0b6f4014ef4089c15f917286e80f2e0c256f9ba8cc",
+   "verdict": "PASS",
+   "reasons": [],
+   "same_asm_as_control": true
+  },
+  {
+   "pas": "nt",
+   "shape": "qwen3-235b-a22b.fc1.G16.N8192.K4096.m2048",
+   "variant": "frag_ring",
+   "kwargs": {
+    "frag_ring": 3,
+    "sched_style": 0,
+    "lock_simd": 0,
+    "split_bar": 0
+   },
+   "tile": [
+    256,
+    256,
+    128,
+    2,
+    2,
+    2
+   ],
+   "lds_arena_calc": 278528,
+   "wg_per_cu": 1,
+   "asm": "asm/hk_gate/frag_ring/nt.qwen3-235b-a22b.fc1.G16.N8192.K4096.m2048/kernel_grouped_nt_0/21_final_isa.s",
+   "meta": {
+    "vgpr_count": 919,
+    "sgpr_count": 54,
+    "vgpr_spill_count": 0,
+    "sgpr_spill_count": 0,
+    "group_segment_fixed_size": 0,
+    "private_segment_fixed_size": 0,
+    "max_flat_workgroup_size": 128,
+    "kernarg_segment_size": 52,
+    "reqd_workgroup_size": [
+     128,
+     1,
+     1
+    ],
+    "target": "amdgcn-amd-amdhsa--gfx1250"
+   },
+   "flat_workgroup_size": 128,
+   "vgpr_budget": 1024,
+   "vgpr_margin": 105,
+   "mnemonics": {
+    "v_wmma": 512,
+    "ds_load_b128": 256,
+    "ds_load_tr16_b128": 0,
+    "ds_store_b128": 64,
+    "s_wait_dscnt": 13,
+    "s_wait_tensorcnt": 4,
+    "s_wait_loadcnt": 0,
+    "s_wait_kmcnt": 8,
+    "s_wait_alu": 107,
+    "s_delay_alu": 34,
+    "s_wait_xcnt": 2,
+    "s_barrier": 0,
+    "s_barrier_signal": 4,
+    "s_barrier_wait": 4,
+    "s_setreg": 2,
+    "scratch_store": 0,
+    "scratch_load": 0,
+    "tensor_load_to_lds": 4,
+    "tensor_store_from_lds": 1,
+    "_total_instr": 2366
+   },
+   "ktile": {
+    "k_ws": 4,
+    "n_acc": 64,
+    "bodies": 2,
+    "dscnt_per_ktile": 6.5,
+    "dscnt_per_substep": 1.625
+   },
+   "sync": {
+    "sync_narrow": 33,
+    "sync_wide": 176,
+    "ratio_narrow": 0.064453125,
+    "ratio_wide": 0.34375
+   },
+   "asm_sha256": "be95fe8021cd7e918ffe35715c3c0e54dfaa96edfb632b74487db4dc28bd0846",
+   "verdict": "PASS",
+   "reasons": [],
+   "same_asm_as_control": false
+  },
+  {
+   "pas": "nt",
+   "shape": "qwen3-235b-a22b.fc1.G16.N8192.K4096.m2048",
+   "variant": "sched_style",
+   "kwargs": {
+    "frag_ring": 2,
+    "sched_style": 1,
+    "lock_simd": 0,
+    "split_bar": 0
+   },
+   "tile": [
+    256,
+    256,
+    128,
+    2,
+    2,
+    2
+   ],
+   "lds_arena_calc": 278528,
+   "wg_per_cu": 1,
+   "asm": "asm/hk_gate/sched_style/nt.qwen3-235b-a22b.fc1.G16.N8192.K4096.m2048/kernel_grouped_nt_0/21_final_isa.s",
+   "meta": {
+    "vgpr_count": 791,
+    "sgpr_count": 54,
+    "vgpr_spill_count": 0,
+    "sgpr_spill_count": 0,
+    "group_segment_fixed_size": 0,
+    "private_segment_fixed_size": 0,
+    "max_flat_workgroup_size": 128,
+    "kernarg_segment_size": 52,
+    "reqd_workgroup_size": [
+     128,
+     1,
+     1
+    ],
+    "target": "amdgcn-amd-amdhsa--gfx1250"
+   },
+   "flat_workgroup_size": 128,
+   "vgpr_budget": 1024,
+   "vgpr_margin": 233,
+   "mnemonics": {
+    "v_wmma": 512,
+    "ds_load_b128": 256,
+    "ds_load_tr16_b128": 0,
+    "ds_store_b128": 64,
+    "s_wait_dscnt": 26,
+    "s_wait_tensorcnt": 4,
+    "s_wait_loadcnt": 0,
+    "s_wait_kmcnt": 8,
+    "s_wait_alu": 127,
+    "s_delay_alu": 35,
+    "s_wait_xcnt": 2,
+    "s_barrier": 0,
+    "s_barrier_signal": 4,
+    "s_barrier_wait": 4,
+    "s_setreg": 2,
+    "scratch_store": 0,
+    "scratch_load": 0,
+    "tensor_load_to_lds": 4,
+    "tensor_store_from_lds": 1,
+    "_total_instr": 2352
+   },
+   "ktile": {
+    "k_ws": 4,
+    "n_acc": 64,
+    "bodies": 2,
+    "dscnt_per_ktile": 13.0,
+    "dscnt_per_substep": 3.25
+   },
+   "sync": {
+    "sync_narrow": 46,
+    "sync_wide": 210,
+    "ratio_narrow": 0.08984375,
+    "ratio_wide": 0.41015625
+   },
+   "asm_sha256": "f548ff3ebd82ecf0152d281d4c64e6dca8c81768c59c49b350fe58423f74725a",
+   "verdict": "PASS",
+   "reasons": [],
+   "same_asm_as_control": false
+  },
+  {
+   "pas": "nt",
+   "shape": "qwen3-235b-a22b.fc1.G16.N8192.K4096.m2048",
+   "variant": "lock_simd",
+   "kwargs": {
+    "frag_ring": 2,
+    "sched_style": 0,
+    "lock_simd": 1,
+    "split_bar": 0
+   },
+   "tile": [
+    256,
+    256,
+    128,
+    2,
+    2,
+    2
+   ],
+   "lds_arena_calc": 278528,
+   "wg_per_cu": 1,
+   "asm": "asm/hk_gate/lock_simd/nt.qwen3-235b-a22b.fc1.G16.N8192.K4096.m2048/kernel_grouped_nt_0/21_final_isa.s",
+   "meta": {
+    "vgpr_count": 791,
+    "sgpr_count": 54,
+    "vgpr_spill_count": 0,
+    "sgpr_spill_count": 0,
+    "group_segment_fixed_size": 0,
+    "private_segment_fixed_size": 0,
+    "max_flat_workgroup_size": 128,
+    "kernarg_segment_size": 52,
+    "reqd_workgroup_size": [
+     128,
+     1,
+     1
+    ],
+    "target": "amdgcn-amd-amdhsa--gfx1250"
+   },
+   "flat_workgroup_size": 128,
+   "vgpr_budget": 1024,
+   "vgpr_margin": 233,
+   "mnemonics": {
+    "v_wmma": 512,
+    "ds_load_b128": 256,
+    "ds_load_tr16_b128": 0,
+    "ds_store_b128": 64,
+    "s_wait_dscnt": 17,
+    "s_wait_tensorcnt": 4,
+    "s_wait_loadcnt": 7,
+    "s_wait_kmcnt": 1,
+    "s_wait_alu": 120,
+    "s_delay_alu": 33,
+    "s_wait_xcnt": 2,
+    "s_barrier": 0,
+    "s_barrier_signal": 4,
+    "s_barrier_wait": 4,
+    "s_setreg": 3,
+    "scratch_store": 0,
+    "scratch_load": 0,
+    "tensor_load_to_lds": 4,
+    "tensor_store_from_lds": 1,
+    "_total_instr": 2391
+   },
+   "ktile": {
+    "k_ws": 4,
+    "n_acc": 64,
+    "bodies": 2,
+    "dscnt_per_ktile": 8.5,
+    "dscnt_per_substep": 2.125
+   },
+   "sync": {
+    "sync_narrow": 37,
+    "sync_wide": 192,
+    "ratio_narrow": 0.072265625,
+    "ratio_wide": 0.375
+   },
+   "asm_sha256": "871f54d4c4ff2b259e08d85048ba604c1e2adc02bd6a50ccd939cc240288050d",
+   "verdict": "PASS",
+   "reasons": [],
+   "same_asm_as_control": false
+  },
+  {
+   "pas": "nt",
+   "shape": "qwen3-235b-a22b.fc1.G16.N8192.K4096.m2048",
+   "variant": "split_bar",
+   "kwargs": {
+    "frag_ring": 2,
+    "sched_style": 0,
+    "lock_simd": 0,
+    "split_bar": 1
+   },
+   "tile": [
+    256,
+    256,
+    128,
+    2,
+    2,
+    2
+   ],
+   "lds_arena_calc": 278528,
+   "wg_per_cu": 1,
+   "asm": "asm/hk_gate/split_bar/nt.qwen3-235b-a22b.fc1.G16.N8192.K4096.m2048/kernel_grouped_nt_0/21_final_isa.s",
+   "meta": {
+    "vgpr_count": 824,
+    "sgpr_count": 54,
+    "vgpr_spill_count": 0,
+    "sgpr_spill_count": 0,
+    "group_segment_fixed_size": 0,
+    "private_segment_fixed_size": 0,
+    "max_flat_workgroup_size": 128,
+    "kernarg_segment_size": 52,
+    "reqd_workgroup_size": [
+     128,
+     1,
+     1
+    ],
+    "target": "amdgcn-amd-amdhsa--gfx1250"
+   },
+   "flat_workgroup_size": 128,
+   "vgpr_budget": 1024,
+   "vgpr_margin": 200,
+   "mnemonics": {
+    "v_wmma": 512,
+    "ds_load_b128": 256,
+    "ds_load_tr16_b128": 0,
+    "ds_store_b128": 64,
+    "s_wait_dscnt": 17,
+    "s_wait_tensorcnt": 4,
+    "s_wait_loadcnt": 0,
+    "s_wait_kmcnt": 8,
+    "s_wait_alu": 121,
+    "s_delay_alu": 35,
+    "s_wait_xcnt": 2,
+    "s_barrier": 0,
+    "s_barrier_signal": 4,
+    "s_barrier_wait": 4,
+    "s_setreg": 2,
+    "scratch_store": 0,
+    "scratch_load": 0,
+    "tensor_load_to_lds": 4,
+    "tensor_store_from_lds": 1,
+    "_total_instr": 2488
+   },
+   "ktile": {
+    "k_ws": 4,
+    "n_acc": 64,
+    "bodies": 2,
+    "dscnt_per_ktile": 8.5,
+    "dscnt_per_substep": 2.125
+   },
+   "sync": {
+    "sync_narrow": 37,
+    "sync_wide": 195,
+    "ratio_narrow": 0.072265625,
+    "ratio_wide": 0.380859375
+   },
+   "asm_sha256": "3fc209bb5f111ba1f86e6c80b684db1eb64b9f4bf21b4caaa023fb6132e7d603",
+   "verdict": "PASS",
+   "reasons": [],
+   "same_asm_as_control": false
+  },
+  {
+   "pas": "nt",
+   "shape": "qwen3-235b-a22b.fc1.G16.N8192.K4096.m2048",
+   "variant": "all",
+   "kwargs": {
+    "frag_ring": 3,
+    "sched_style": 1,
+    "lock_simd": 1,
+    "split_bar": 1
+   },
+   "tile": [
+    256,
+    256,
+    128,
+    2,
+    2,
+    2
+   ],
+   "lds_arena_calc": 278528,
+   "wg_per_cu": 1,
+   "asm": "asm/hk_gate/all/nt.qwen3-235b-a22b.fc1.G16.N8192.K4096.m2048/kernel_grouped_nt_0/21_final_isa.s",
+   "meta": {
+    "vgpr_count": 919,
+    "sgpr_count": 54,
+    "vgpr_spill_count": 0,
+    "sgpr_spill_count": 0,
+    "group_segment_fixed_size": 0,
+    "private_segment_fixed_size": 0,
+    "max_flat_workgroup_size": 128,
+    "kernarg_segment_size": 52,
+    "reqd_workgroup_size": [
+     128,
+     1,
+     1
+    ],
+    "target": "amdgcn-amd-amdhsa--gfx1250"
+   },
+   "flat_workgroup_size": 128,
+   "vgpr_budget": 1024,
+   "vgpr_margin": 105,
+   "mnemonics": {
+    "v_wmma": 512,
+    "ds_load_b128": 256,
+    "ds_load_tr16_b128": 0,
+    "ds_store_b128": 64,
+    "s_wait_dscnt": 23,
+    "s_wait_tensorcnt": 4,
+    "s_wait_loadcnt": 7,
+    "s_wait_kmcnt": 1,
+    "s_wait_alu": 115,
+    "s_delay_alu": 38,
+    "s_wait_xcnt": 2,
+    "s_barrier": 0,
+    "s_barrier_signal": 4,
+    "s_barrier_wait": 4,
+    "s_setreg": 3,
+    "scratch_store": 0,
+    "scratch_load": 0,
+    "tensor_load_to_lds": 4,
+    "tensor_store_from_lds": 1,
+    "_total_instr": 2466
+   },
+   "ktile": {
+    "k_ws": 4,
+    "n_acc": 64,
+    "bodies": 2,
+    "dscnt_per_ktile": 11.5,
+    "dscnt_per_substep": 2.875
+   },
+   "sync": {
+    "sync_narrow": 43,
+    "sync_wide": 198,
+    "ratio_narrow": 0.083984375,
+    "ratio_wide": 0.38671875
+   },
+   "asm_sha256": "4531ffffa15c7c8f12e5a0befc0b531183b9f8ff98247af935550ccaa12fe740",
+   "verdict": "PASS",
+   "reasons": [],
+   "same_asm_as_control": false
+  },
+  {
+   "pas": "nt",
+   "shape": "deepseek-v3.fc1.G32.N4096.K7168.m512",
+   "variant": "control",
+   "kwargs": {
+    "frag_ring": 2,
+    "sched_style": 0,
+    "lock_simd": 0,
+    "split_bar": 0
+   },
+   "tile": [
+    256,
+    256,
+    128,
+    2,
+    2,
+    2
+   ],
+   "lds_arena_calc": 278528,
+   "wg_per_cu": 1,
+   "asm": "asm/hk_gate/control/nt.deepseek-v3.fc1.G32.N4096.K7168.m512/kernel_grouped_nt_0/21_final_isa.s",
+   "meta": {
+    "vgpr_count": 791,
+    "sgpr_count": 54,
+    "vgpr_spill_count": 0,
+    "sgpr_spill_count": 0,
+    "group_segment_fixed_size": 0,
+    "private_segment_fixed_size": 0,
+    "max_flat_workgroup_size": 128,
+    "kernarg_segment_size": 52,
+    "reqd_workgroup_size": [
+     128,
+     1,
+     1
+    ],
+    "target": "amdgcn-amd-amdhsa--gfx1250"
+   },
+   "flat_workgroup_size": 128,
+   "vgpr_budget": 1024,
+   "vgpr_margin": 233,
+   "mnemonics": {
+    "v_wmma": 512,
+    "ds_load_b128": 256,
+    "ds_load_tr16_b128": 0,
+    "ds_store_b128": 64,
+    "s_wait_dscnt": 17,
+    "s_wait_tensorcnt": 4,
+    "s_wait_loadcnt": 0,
+    "s_wait_kmcnt": 9,
+    "s_wait_alu": 108,
+    "s_delay_alu": 36,
+    "s_wait_xcnt": 2,
+    "s_barrier": 0,
+    "s_barrier_signal": 4,
+    "s_barrier_wait": 4,
+    "s_setreg": 2,
+    "scratch_store": 0,
+    "scratch_load": 0,
+    "tensor_load_to_lds": 4,
+    "tensor_store_from_lds": 1,
+    "_total_instr": 2390
+   },
+   "ktile": {
+    "k_ws": 4,
+    "n_acc": 64,
+    "bodies": 2,
+    "dscnt_per_ktile": 8.5,
+    "dscnt_per_substep": 2.125
+   },
+   "sync": {
+    "sync_narrow": 38,
+    "sync_wide": 184,
+    "ratio_narrow": 0.07421875,
+    "ratio_wide": 0.359375
+   },
+   "asm_sha256": "86a01a7d04619911a3cdccbf43e4b4238922152f74dc989cc55cde129d0a127b",
+   "verdict": "PASS",
+   "reasons": [],
+   "same_asm_as_control": true
+  },
+  {
+   "pas": "nt",
+   "shape": "deepseek-v3.fc1.G32.N4096.K7168.m512",
+   "variant": "frag_ring",
+   "kwargs": {
+    "frag_ring": 3,
+    "sched_style": 0,
+    "lock_simd": 0,
+    "split_bar": 0
+   },
+   "tile": [
+    256,
+    256,
+    128,
+    2,
+    2,
+    2
+   ],
+   "lds_arena_calc": 278528,
+   "wg_per_cu": 1,
+   "asm": "asm/hk_gate/frag_ring/nt.deepseek-v3.fc1.G32.N4096.K7168.m512/kernel_grouped_nt_0/21_final_isa.s",
+   "meta": {
+    "vgpr_count": 919,
+    "sgpr_count": 54,
+    "vgpr_spill_count": 0,
+    "sgpr_spill_count": 0,
+    "group_segment_fixed_size": 0,
+    "private_segment_fixed_size": 0,
+    "max_flat_workgroup_size": 128,
+    "kernarg_segment_size": 52,
+    "reqd_workgroup_size": [
+     128,
+     1,
+     1
+    ],
+    "target": "amdgcn-amd-amdhsa--gfx1250"
+   },
+   "flat_workgroup_size": 128,
+   "vgpr_budget": 1024,
+   "vgpr_margin": 105,
+   "mnemonics": {
+    "v_wmma": 512,
+    "ds_load_b128": 256,
+    "ds_load_tr16_b128": 0,
+    "ds_store_b128": 64,
+    "s_wait_dscnt": 13,
+    "s_wait_tensorcnt": 4,
+    "s_wait_loadcnt": 0,
+    "s_wait_kmcnt": 9,
+    "s_wait_alu": 107,
+    "s_delay_alu": 36,
+    "s_wait_xcnt": 2,
+    "s_barrier": 0,
+    "s_barrier_signal": 4,
+    "s_barrier_wait": 4,
+    "s_setreg": 2,
+    "scratch_store": 0,
+    "scratch_load": 0,
+    "tensor_load_to_lds": 4,
+    "tensor_store_from_lds": 1,
+    "_total_instr": 2378
+   },
+   "ktile": {
+    "k_ws": 4,
+    "n_acc": 64,
+    "bodies": 2,
+    "dscnt_per_ktile": 6.5,
+    "dscnt_per_substep": 1.625
+   },
+   "sync": {
+    "sync_narrow": 34,
+    "sync_wide": 179,
+    "ratio_narrow": 0.06640625,
+    "ratio_wide": 0.349609375
+   },
+   "asm_sha256": "1bfb9f7336e961a23f6d7e098189de3f2df229f5728fca5ae9de78a16b24ceb4",
+   "verdict": "PASS",
+   "reasons": [],
+   "same_asm_as_control": false
+  },
+  {
+   "pas": "nt",
+   "shape": "deepseek-v3.fc1.G32.N4096.K7168.m512",
+   "variant": "sched_style",
+   "kwargs": {
+    "frag_ring": 2,
+    "sched_style": 1,
+    "lock_simd": 0,
+    "split_bar": 0
+   },
+   "tile": [
+    256,
+    256,
+    128,
+    2,
+    2,
+    2
+   ],
+   "lds_arena_calc": 278528,
+   "wg_per_cu": 1,
+   "asm": "asm/hk_gate/sched_style/nt.deepseek-v3.fc1.G32.N4096.K7168.m512/kernel_grouped_nt_0/21_final_isa.s",
+   "meta": {
+    "vgpr_count": 791,
+    "sgpr_count": 54,
+    "vgpr_spill_count": 0,
+    "sgpr_spill_count": 0,
+    "group_segment_fixed_size": 0,
+    "private_segment_fixed_size": 0,
+    "max_flat_workgroup_size": 128,
+    "kernarg_segment_size": 52,
+    "reqd_workgroup_size": [
+     128,
+     1,
+     1
+    ],
+    "target": "amdgcn-amd-amdhsa--gfx1250"
+   },
+   "flat_workgroup_size": 128,
+   "vgpr_budget": 1024,
+   "vgpr_margin": 233,
+   "mnemonics": {
+    "v_wmma": 512,
+    "ds_load_b128": 256,
+    "ds_load_tr16_b128": 0,
+    "ds_store_b128": 64,
+    "s_wait_dscnt": 26,
+    "s_wait_tensorcnt": 4,
+    "s_wait_loadcnt": 0,
+    "s_wait_kmcnt": 9,
+    "s_wait_alu": 127,
+    "s_delay_alu": 37,
+    "s_wait_xcnt": 2,
+    "s_barrier": 0,
+    "s_barrier_signal": 4,
+    "s_barrier_wait": 4,
+    "s_setreg": 2,
+    "scratch_store": 0,
+    "scratch_load": 0,
+    "tensor_load_to_lds": 4,
+    "tensor_store_from_lds": 1,
+    "_total_instr": 2364
+   },
+   "ktile": {
+    "k_ws": 4,
+    "n_acc": 64,
+    "bodies": 2,
+    "dscnt_per_ktile": 13.0,
+    "dscnt_per_substep": 3.25
+   },
+   "sync": {
+    "sync_narrow": 47,
+    "sync_wide": 213,
+    "ratio_narrow": 0.091796875,
+    "ratio_wide": 0.416015625
+   },
+   "asm_sha256": "e19e594246b91f0a6cdf4206e06bcbdaf813ec08481e55a237d522340108ca11",
+   "verdict": "PASS",
+   "reasons": [],
+   "same_asm_as_control": false
+  },
+  {
+   "pas": "nt",
+   "shape": "deepseek-v3.fc1.G32.N4096.K7168.m512",
+   "variant": "lock_simd",
+   "kwargs": {
+    "frag_ring": 2,
+    "sched_style": 0,
+    "lock_simd": 1,
+    "split_bar": 0
+   },
+   "tile": [
+    256,
+    256,
+    128,
+    2,
+    2,
+    2
+   ],
+   "lds_arena_calc": 278528,
+   "wg_per_cu": 1,
+   "asm": "asm/hk_gate/lock_simd/nt.deepseek-v3.fc1.G32.N4096.K7168.m512/kernel_grouped_nt_0/21_final_isa.s",
+   "meta": {
+    "vgpr_count": 791,
+    "sgpr_count": 54,
+    "vgpr_spill_count": 0,
+    "sgpr_spill_count": 0,
+    "group_segment_fixed_size": 0,
+    "private_segment_fixed_size": 0,
+    "max_flat_workgroup_size": 128,
+    "kernarg_segment_size": 52,
+    "reqd_workgroup_size": [
+     128,
+     1,
+     1
+    ],
+    "target": "amdgcn-amd-amdhsa--gfx1250"
+   },
+   "flat_workgroup_size": 128,
+   "vgpr_budget": 1024,
+   "vgpr_margin": 233,
+   "mnemonics": {
+    "v_wmma": 512,
+    "ds_load_b128": 256,
+    "ds_load_tr16_b128": 0,
+    "ds_store_b128": 64,
+    "s_wait_dscnt": 17,
+    "s_wait_tensorcnt": 4,
+    "s_wait_loadcnt": 8,
+    "s_wait_kmcnt": 1,
+    "s_wait_alu": 120,
+    "s_delay_alu": 36,
+    "s_wait_xcnt": 2,
+    "s_barrier": 0,
+    "s_barrier_signal": 4,
+    "s_barrier_wait": 4,
+    "s_setreg": 3,
+    "scratch_store": 0,
+    "scratch_load": 0,
+    "tensor_load_to_lds": 4,
+    "tensor_store_from_lds": 1,
+    "_total_instr": 2403
+   },
+   "ktile": {
+    "k_ws": 4,
+    "n_acc": 64,
+    "bodies": 2,
+    "dscnt_per_ktile": 8.5,
+    "dscnt_per_substep": 2.125
+   },
+   "sync": {
+    "sync_narrow": 38,
+    "sync_wide": 196,
+    "ratio_narrow": 0.07421875,
+    "ratio_wide": 0.3828125
+   },
+   "asm_sha256": "20189386ccb29f473452d81d574336fef94c6b60f1b705c5ba0fe362f0143580",
+   "verdict": "PASS",
+   "reasons": [],
+   "same_asm_as_control": false
+  },
+  {
+   "pas": "nt",
+   "shape": "deepseek-v3.fc1.G32.N4096.K7168.m512",
+   "variant": "split_bar",
+   "kwargs": {
+    "frag_ring": 2,
+    "sched_style": 0,
+    "lock_simd": 0,
+    "split_bar": 1
+   },
+   "tile": [
+    256,
+    256,
+    128,
+    2,
+    2,
+    2
+   ],
+   "lds_arena_calc": 278528,
+   "wg_per_cu": 1,
+   "asm": "asm/hk_gate/split_bar/nt.deepseek-v3.fc1.G32.N4096.K7168.m512/kernel_grouped_nt_0/21_final_isa.s",
+   "meta": {
+    "vgpr_count": 824,
+    "sgpr_count": 54,
+    "vgpr_spill_count": 0,
+    "sgpr_spill_count": 0,
+    "group_segment_fixed_size": 0,
+    "private_segment_fixed_size": 0,
+    "max_flat_workgroup_size": 128,
+    "kernarg_segment_size": 52,
+    "reqd_workgroup_size": [
+     128,
+     1,
+     1
+    ],
+    "target": "amdgcn-amd-amdhsa--gfx1250"
+   },
+   "flat_workgroup_size": 128,
+   "vgpr_budget": 1024,
+   "vgpr_margin": 200,
+   "mnemonics": {
+    "v_wmma": 512,
+    "ds_load_b128": 256,
+    "ds_load_tr16_b128": 0,
+    "ds_store_b128": 64,
+    "s_wait_dscnt": 17,
+    "s_wait_tensorcnt": 4,
+    "s_wait_loadcnt": 0,
+    "s_wait_kmcnt": 9,
+    "s_wait_alu": 121,
+    "s_delay_alu": 37,
+    "s_wait_xcnt": 2,
+    "s_barrier": 0,
+    "s_barrier_signal": 4,
+    "s_barrier_wait": 4,
+    "s_setreg": 2,
+    "scratch_store": 0,
+    "scratch_load": 0,
+    "tensor_load_to_lds": 4,
+    "tensor_store_from_lds": 1,
+    "_total_instr": 2500
+   },
+   "ktile": {
+    "k_ws": 4,
+    "n_acc": 64,
+    "bodies": 2,
+    "dscnt_per_ktile": 8.5,
+    "dscnt_per_substep": 2.125
+   },
+   "sync": {
+    "sync_narrow": 38,
+    "sync_wide": 198,
+    "ratio_narrow": 0.07421875,
+    "ratio_wide": 0.38671875
+   },
+   "asm_sha256": "d99b93b574bd4f6dcbf5b74b9015ce75169ac68f0bdf20658249da4ebcd4b468",
+   "verdict": "PASS",
+   "reasons": [],
+   "same_asm_as_control": false
+  },
+  {
+   "pas": "nt",
+   "shape": "deepseek-v3.fc1.G32.N4096.K7168.m512",
+   "variant": "all",
+   "kwargs": {
+    "frag_ring": 3,
+    "sched_style": 1,
+    "lock_simd": 1,
+    "split_bar": 1
+   },
+   "tile": [
+    256,
+    256,
+    128,
+    2,
+    2,
+    2
+   ],
+   "lds_arena_calc": 278528,
+   "wg_per_cu": 1,
+   "asm": "asm/hk_gate/all/nt.deepseek-v3.fc1.G32.N4096.K7168.m512/kernel_grouped_nt_0/21_final_isa.s",
+   "meta": {
+    "vgpr_count": 919,
+    "sgpr_count": 54,
+    "vgpr_spill_count": 0,
+    "sgpr_spill_count": 0,
+    "group_segment_fixed_size": 0,
+    "private_segment_fixed_size": 0,
+    "max_flat_workgroup_size": 128,
+    "kernarg_segment_size": 52,
+    "reqd_workgroup_size": [
+     128,
+     1,
+     1
+    ],
+    "target": "amdgcn-amd-amdhsa--gfx1250"
+   },
+   "flat_workgroup_size": 128,
+   "vgpr_budget": 1024,
+   "vgpr_margin": 105,
+   "mnemonics": {
+    "v_wmma": 512,
+    "ds_load_b128": 256,
+    "ds_load_tr16_b128": 0,
+    "ds_store_b128": 64,
+    "s_wait_dscnt": 23,
+    "s_wait_tensorcnt": 4,
+    "s_wait_loadcnt": 8,
+    "s_wait_kmcnt": 1,
+    "s_wait_alu": 115,
+    "s_delay_alu": 41,
+    "s_wait_xcnt": 2,
+    "s_barrier": 0,
+    "s_barrier_signal": 4,
+    "s_barrier_wait": 4,
+    "s_setreg": 3,
+    "scratch_store": 0,
+    "scratch_load": 0,
+    "tensor_load_to_lds": 4,
+    "tensor_store_from_lds": 1,
+    "_total_instr": 2478
+   },
+   "ktile": {
+    "k_ws": 4,
+    "n_acc": 64,
+    "bodies": 2,
+    "dscnt_per_ktile": 11.5,
+    "dscnt_per_substep": 2.875
+   },
+   "sync": {
+    "sync_narrow": 44,
+    "sync_wide": 202,
+    "ratio_narrow": 0.0859375,
+    "ratio_wide": 0.39453125
+   },
+   "asm_sha256": "728625603dcbdcd01fb7bc9fb1398960ebe6c3b1563c761cdcbdeda6fb9dd365",
+   "verdict": "PASS",
+   "reasons": [],
+   "same_asm_as_control": false
+  },
+  {
+   "pas": "nt",
+   "shape": "deepseek-v3.fc2.G32.N7168.K2048.m128",
+   "variant": "control",
+   "kwargs": {
+    "frag_ring": 2,
+    "sched_style": 0,
+    "lock_simd": 0,
+    "split_bar": 0
+   },
+   "tile": [
+    128,
+    128,
+    128,
+    2,
+    2,
+    2
+   ],
+   "lds_arena_calc": 139264,
+   "wg_per_cu": 2,
+   "asm": "asm/hk_gate/control/nt.deepseek-v3.fc2.G32.N7168.K2048.m128/kernel_grouped_nt_0/21_final_isa.s",
+   "meta": {
+    "vgpr_count": 271,
+    "sgpr_count": 54,
+    "vgpr_spill_count": 0,
+    "sgpr_spill_count": 0,
+    "group_segment_fixed_size": 0,
+    "private_segment_fixed_size": 0,
+    "max_flat_workgroup_size": 128,
+    "kernarg_segment_size": 52,
+    "reqd_workgroup_size": [
+     128,
+     1,
+     1
+    ],
+    "target": "amdgcn-amd-amdhsa--gfx1250"
+   },
+   "flat_workgroup_size": 128,
+   "vgpr_budget": 1024,
+   "vgpr_margin": 753,
+   "mnemonics": {
+    "v_wmma": 128,
+    "ds_load_b128": 128,
+    "ds_load_tr16_b128": 0,
+    "ds_store_b128": 16,
+    "s_wait_dscnt": 11,
+    "s_wait_tensorcnt": 4,
+    "s_wait_loadcnt": 0,
+    "s_wait_kmcnt": 9,
+    "s_wait_alu": 39,
+    "s_delay_alu": 35,
+    "s_wait_xcnt": 2,
+    "s_barrier": 0,
+    "s_barrier_signal": 4,
+    "s_barrier_wait": 4,
+    "s_setreg": 2,
+    "scratch_store": 0,
+    "scratch_load": 0,
+    "tensor_load_to_lds": 4,
+    "tensor_store_from_lds": 1,
+    "_total_instr": 1010
+   },
+   "ktile": {
+    "k_ws": 4,
+    "n_acc": 16,
+    "bodies": 2,
+    "dscnt_per_ktile": 5.5,
+    "dscnt_per_substep": 1.375
+   },
+   "sync": {
+    "sync_narrow": 32,
+    "sync_wide": 108,
+    "ratio_narrow": 0.25,
+    "ratio_wide": 0.84375
+   },
+   "asm_sha256": "2cd7f6f66bc49851f1151048ac4d4fba173f32d707696b72217ccff06c45f8cb",
+   "verdict": "PASS",
+   "reasons": [],
+   "same_asm_as_control": true
+  },
+  {
+   "pas": "nt",
+   "shape": "deepseek-v3.fc2.G32.N7168.K2048.m128",
+   "variant": "frag_ring",
+   "kwargs": {
+    "frag_ring": 3,
+    "sched_style": 0,
+    "lock_simd": 0,
+    "split_bar": 0
+   },
+   "tile": [
+    128,
+    128,
+    128,
+    2,
+    2,
+    2
+   ],
+   "lds_arena_calc": 139264,
+   "wg_per_cu": 2,
+   "asm": "asm/hk_gate/frag_ring/nt.deepseek-v3.fc2.G32.N7168.K2048.m128/kernel_grouped_nt_0/21_final_isa.s",
+   "meta": {
+    "vgpr_count": 335,
+    "sgpr_count": 54,
+    "vgpr_spill_count": 0,
+    "sgpr_spill_count": 0,
+    "group_segment_fixed_size": 0,
+    "private_segment_fixed_size": 0,
+    "max_flat_workgroup_size": 128,
+    "kernarg_segment_size": 52,
+    "reqd_workgroup_size": [
+     128,
+     1,
+     1
+    ],
+    "target": "amdgcn-amd-amdhsa--gfx1250"
+   },
+   "flat_workgroup_size": 128,
+   "vgpr_budget": 1024,
+   "vgpr_margin": 689,
+   "mnemonics": {
+    "v_wmma": 128,
+    "ds_load_b128": 128,
+    "ds_load_tr16_b128": 0,
+    "ds_store_b128": 16,
+    "s_wait_dscnt": 8,
+    "s_wait_tensorcnt": 4,
+    "s_wait_loadcnt": 0,
+    "s_wait_kmcnt": 9,
+    "s_wait_alu": 40,
+    "s_delay_alu": 35,
+    "s_wait_xcnt": 2,
+    "s_barrier": 0,
+    "s_barrier_signal": 4,
+    "s_barrier_wait": 4,
+    "s_setreg": 2,
+    "scratch_store": 0,
+    "scratch_load": 0,
+    "tensor_load_to_lds": 4,
+    "tensor_store_from_lds": 1,
+    "_total_instr": 1014
+   },
+   "ktile": {
+    "k_ws": 4,
+    "n_acc": 16,
+    "bodies": 2,
+    "dscnt_per_ktile": 4.0,
+    "dscnt_per_substep": 1.0
+   },
+   "sync": {
+    "sync_narrow": 29,
+    "sync_wide": 106,
+    "ratio_narrow": 0.2265625,
+    "ratio_wide": 0.828125
+   },
+   "asm_sha256": "172c04718833687d78f7e6c097d82efa07b63c5384aa49401a57d63a230b0243",
+   "verdict": "PASS",
+   "reasons": [],
+   "same_asm_as_control": false
+  },
+  {
+   "pas": "nt",
+   "shape": "deepseek-v3.fc2.G32.N7168.K2048.m128",
+   "variant": "sched_style",
+   "kwargs": {
+    "frag_ring": 2,
+    "sched_style": 1,
+    "lock_simd": 0,
+    "split_bar": 0
+   },
+   "tile": [
+    128,
+    128,
+    128,
+    2,
+    2,
+    2
+   ],
+   "lds_arena_calc": 139264,
+   "wg_per_cu": 2,
+   "asm": "asm/hk_gate/sched_style/nt.deepseek-v3.fc2.G32.N7168.K2048.m128/kernel_grouped_nt_0/21_final_isa.s",
+   "meta": {
+    "vgpr_count": 271,
+    "sgpr_count": 54,
+    "vgpr_spill_count": 0,
+    "sgpr_spill_count": 0,
+    "group_segment_fixed_size": 0,
+    "private_segment_fixed_size": 0,
+    "max_flat_workgroup_size": 128,
+    "kernarg_segment_size": 52,
+    "reqd_workgroup_size": [
+     128,
+     1,
+     1
+    ],
+    "target": "amdgcn-amd-amdhsa--gfx1250"
+   },
+   "flat_workgroup_size": 128,
+   "vgpr_budget": 1024,
+   "vgpr_margin": 753,
+   "mnemonics": {
+    "v_wmma": 128,
+    "ds_load_b128": 128,
+    "ds_load_tr16_b128": 0,
+    "ds_store_b128": 16,
+    "s_wait_dscnt": 17,
+    "s_wait_tensorcnt": 4,
+    "s_wait_loadcnt": 0,
+    "s_wait_kmcnt": 9,
+    "s_wait_alu": 32,
+    "s_delay_alu": 37,
+    "s_wait_xcnt": 2,
+    "s_barrier": 0,
+    "s_barrier_signal": 4,
+    "s_barrier_wait": 4,
+    "s_setreg": 2,
+    "scratch_store": 0,
+    "scratch_load": 0,
+    "tensor_load_to_lds": 4,
+    "tensor_store_from_lds": 1,
+    "_total_instr": 1014
+   },
+   "ktile": {
+    "k_ws": 4,
+    "n_acc": 16,
+    "bodies": 2,
+    "dscnt_per_ktile": 8.5,
+    "dscnt_per_substep": 2.125
+   },
+   "sync": {
+    "sync_narrow": 38,
+    "sync_wide": 109,
+    "ratio_narrow": 0.296875,
+    "ratio_wide": 0.8515625
+   },
+   "asm_sha256": "464ab55fc62334b58173feff95b4bb58e6ca60ebad4230385f05b15d3802cfe7",
+   "verdict": "PASS",
+   "reasons": [],
+   "same_asm_as_control": false
+  },
+  {
+   "pas": "nt",
+   "shape": "deepseek-v3.fc2.G32.N7168.K2048.m128",
+   "variant": "lock_simd",
+   "kwargs": {
+    "frag_ring": 2,
+    "sched_style": 0,
+    "lock_simd": 1,
+    "split_bar": 0
+   },
+   "tile": [
+    128,
+    128,
+    128,
+    2,
+    2,
+    2
+   ],
+   "lds_arena_calc": 139264,
+   "wg_per_cu": 2,
+   "asm": "asm/hk_gate/lock_simd/nt.deepseek-v3.fc2.G32.N7168.K2048.m128/kernel_grouped_nt_0/21_final_isa.s",
+   "meta": {
+    "vgpr_count": 271,
+    "sgpr_count": 54,
+    "vgpr_spill_count": 0,
+    "sgpr_spill_count": 0,
+    "group_segment_fixed_size": 0,
+    "private_segment_fixed_size": 0,
+    "max_flat_workgroup_size": 128,
+    "kernarg_segment_size": 52,
+    "reqd_workgroup_size": [
+     128,
+     1,
+     1
+    ],
+    "target": "amdgcn-amd-amdhsa--gfx1250"
+   },
+   "flat_workgroup_size": 128,
+   "vgpr_budget": 1024,
+   "vgpr_margin": 753,
+   "mnemonics": {
+    "v_wmma": 128,
+    "ds_load_b128": 128,
+    "ds_load_tr16_b128": 0,
+    "ds_store_b128": 16,
+    "s_wait_dscnt": 11,
+    "s_wait_tensorcnt": 4,
+    "s_wait_loadcnt": 8,
+    "s_wait_kmcnt": 1,
+    "s_wait_alu": 51,
+    "s_delay_alu": 36,
+    "s_wait_xcnt": 2,
+    "s_barrier": 0,
+    "s_barrier_signal": 4,
+    "s_barrier_wait": 4,
+    "s_setreg": 3,
+    "scratch_store": 0,
+    "scratch_load": 0,
+    "tensor_load_to_lds": 4,
+    "tensor_store_from_lds": 1,
+    "_total_instr": 1024
+   },
+   "ktile": {
+    "k_ws": 4,
+    "n_acc": 16,
+    "bodies": 2,
+    "dscnt_per_ktile": 5.5,
+    "dscnt_per_substep": 1.375
+   },
+   "sync": {
+    "sync_narrow": 32,
+    "sync_wide": 121,
+    "ratio_narrow": 0.25,
+    "ratio_wide": 0.9453125
+   },
+   "asm_sha256": "956e0c153c73ee076567db5990b8e6c8b2d9081797b0d7109cbed1b5b3ef05de",
+   "verdict": "PASS",
+   "reasons": [],
+   "same_asm_as_control": false
+  },
+  {
+   "pas": "nt",
+   "shape": "deepseek-v3.fc2.G32.N7168.K2048.m128",
+   "variant": "split_bar",
+   "kwargs": {
+    "frag_ring": 2,
+    "sched_style": 0,
+    "lock_simd": 0,
+    "split_bar": 1
+   },
+   "tile": [
+    128,
+    128,
+    128,
+    2,
+    2,
+    2
+   ],
+   "lds_arena_calc": 139264,
+   "wg_per_cu": 2,
+   "asm": "asm/hk_gate/split_bar/nt.deepseek-v3.fc2.G32.N7168.K2048.m128/kernel_grouped_nt_0/21_final_isa.s",
+   "meta": {
+    "vgpr_count": 271,
+    "sgpr_count": 54,
+    "vgpr_spill_count": 0,
+    "sgpr_spill_count": 0,
+    "group_segment_fixed_size": 0,
+    "private_segment_fixed_size": 0,
+    "max_flat_workgroup_size": 128,
+    "kernarg_segment_size": 52,
+    "reqd_workgroup_size": [
+     128,
+     1,
+     1
+    ],
+    "target": "amdgcn-amd-amdhsa--gfx1250"
+   },
+   "flat_workgroup_size": 128,
+   "vgpr_budget": 1024,
+   "vgpr_margin": 753,
+   "mnemonics": {
+    "v_wmma": 128,
+    "ds_load_b128": 128,
+    "ds_load_tr16_b128": 0,
+    "ds_store_b128": 16,
+    "s_wait_dscnt": 11,
+    "s_wait_tensorcnt": 4,
+    "s_wait_loadcnt": 0,
+    "s_wait_kmcnt": 9,
+    "s_wait_alu": 29,
+    "s_delay_alu": 34,
+    "s_wait_xcnt": 2,
+    "s_barrier": 0,
+    "s_barrier_signal": 4,
+    "s_barrier_wait": 4,
+    "s_setreg": 2,
+    "scratch_store": 0,
+    "scratch_load": 0,
+    "tensor_load_to_lds": 4,
+    "tensor_store_from_lds": 1,
+    "_total_instr": 1001
+   },
+   "ktile": {
+    "k_ws": 4,
+    "n_acc": 16,
+    "bodies": 2,
+    "dscnt_per_ktile": 5.5,
+    "dscnt_per_substep": 1.375
+   },
+   "sync": {
+    "sync_narrow": 32,
+    "sync_wide": 97,
+    "ratio_narrow": 0.25,
+    "ratio_wide": 0.7578125
+   },
+   "asm_sha256": "f18674de2ea9e28d2d954c9e044776f0f4e911eeeaf26ff63fe7cf9dd2610f76",
+   "verdict": "PASS",
+   "reasons": [],
+   "same_asm_as_control": false
+  },
+  {
+   "pas": "nt",
+   "shape": "deepseek-v3.fc2.G32.N7168.K2048.m128",
+   "variant": "all",
+   "kwargs": {
+    "frag_ring": 3,
+    "sched_style": 1,
+    "lock_simd": 1,
+    "split_bar": 1
+   },
+   "tile": [
+    128,
+    128,
+    128,
+    2,
+    2,
+    2
+   ],
+   "lds_arena_calc": 139264,
+   "wg_per_cu": 2,
+   "asm": "asm/hk_gate/all/nt.deepseek-v3.fc2.G32.N7168.K2048.m128/kernel_grouped_nt_0/21_final_isa.s",
+   "meta": {
+    "vgpr_count": 335,
+    "sgpr_count": 54,
+    "vgpr_spill_count": 0,
+    "sgpr_spill_count": 0,
+    "group_segment_fixed_size": 0,
+    "private_segment_fixed_size": 0,
+    "max_flat_workgroup_size": 128,
+    "kernarg_segment_size": 52,
+    "reqd_workgroup_size": [
+     128,
+     1,
+     1
+    ],
+    "target": "amdgcn-amd-amdhsa--gfx1250"
+   },
+   "flat_workgroup_size": 128,
+   "vgpr_budget": 1024,
+   "vgpr_margin": 689,
+   "mnemonics": {
+    "v_wmma": 128,
+    "ds_load_b128": 128,
+    "ds_load_tr16_b128": 0,
+    "ds_store_b128": 16,
+    "s_wait_dscnt": 13,
+    "s_wait_tensorcnt": 4,
+    "s_wait_loadcnt": 8,
+    "s_wait_kmcnt": 1,
+    "s_wait_alu": 40,
+    "s_delay_alu": 41,
+    "s_wait_xcnt": 2,
+    "s_barrier": 0,
+    "s_barrier_signal": 4,
+    "s_barrier_wait": 4,
+    "s_setreg": 3,
+    "scratch_store": 0,
+    "scratch_load": 0,
+    "tensor_load_to_lds": 4,
+    "tensor_store_from_lds": 1,
+    "_total_instr": 1031
+   },
+   "ktile": {
+    "k_ws": 4,
+    "n_acc": 16,
+    "bodies": 2,
+    "dscnt_per_ktile": 6.5,
+    "dscnt_per_substep": 1.625
+   },
+   "sync": {
+    "sync_narrow": 34,
+    "sync_wide": 117,
+    "ratio_narrow": 0.265625,
+    "ratio_wide": 0.9140625
+   },
+   "asm_sha256": "7d88077393f3b3c532e25a43e7bdb374eb6100962b048842a63487ef51196ce7",
+   "verdict": "PASS",
+   "reasons": [],
+   "same_asm_as_control": false
+  }
+ ],
+ "baseline_identity": [
+  {
+   "pas": "nt",
+   "shape": "gpt-oss-20b.fc1.G4.N5760.K2880.m1024",
+   "baseline_sha256": "0dd95f0065239ee1bbb89af8f32ff005d0e0ef78148fb6b3d5e9bd5b9a483b50",
+   "control_sha256": "0dd95f0065239ee1bbb89af8f32ff005d0e0ef78148fb6b3d5e9bd5b9a483b50",
+   "identical": true
+  },
+  {
+   "pas": "nt",
+   "shape": "gpt-oss-20b.fc2.G4.N2880.K2880.m2048",
+   "baseline_sha256": "6fe6d17b62087e770cc1654bcaa10dab63405932768947ba3afda37ddc0afc48",
+   "control_sha256": "6fe6d17b62087e770cc1654bcaa10dab63405932768947ba3afda37ddc0afc48",
+   "identical": true
+  },
+  {
+   "pas": "nt",
+   "shape": "qwen3-30b-a3b.fc1.G16.N4096.K2048.m2048",
+   "baseline_sha256": "5f59d8c230cf4cec36e5debfd19d2fe0261da8782c3e61fb9e4f992f2ae6b730",
+   "control_sha256": "5f59d8c230cf4cec36e5debfd19d2fe0261da8782c3e61fb9e4f992f2ae6b730",
+   "identical": true
+  },
+  {
+   "pas": "nt",
+   "shape": "qwen3-235b-a22b.fc1.G16.N8192.K4096.m2048",
+   "baseline_sha256": "d9995a102257eef34348aa0b6f4014ef4089c15f917286e80f2e0c256f9ba8cc",
+   "control_sha256": "d9995a102257eef34348aa0b6f4014ef4089c15f917286e80f2e0c256f9ba8cc",
+   "identical": true
+  },
+  {
+   "pas": "nt",
+   "shape": "deepseek-v3.fc1.G32.N4096.K7168.m512",
+   "baseline_sha256": "86a01a7d04619911a3cdccbf43e4b4238922152f74dc989cc55cde129d0a127b",
+   "control_sha256": "86a01a7d04619911a3cdccbf43e4b4238922152f74dc989cc55cde129d0a127b",
+   "identical": true
+  },
+  {
+   "pas": "nt",
+   "shape": "deepseek-v3.fc2.G32.N7168.K2048.m128",
+   "baseline_sha256": "2cd7f6f66bc49851f1151048ac4d4fba173f32d707696b72217ccff06c45f8cb",
+   "control_sha256": "2cd7f6f66bc49851f1151048ac4d4fba173f32d707696b72217ccff06c45f8cb",
+   "identical": true
+  }
+ ],
+ "summary": {
+  "PASS": 32,
+  "WATCH": 0,
+  "FAIL": 0,
+  "INERT": 0,
+  "ERROR": 4
+ }
+}

@@ -36,6 +36,28 @@
 2. 两个变体最好是**同一份源码 + 一个 monkeypatch**（v4/v5 都是把旧规则装回去），
    而不是两个 checkout。这样"对比夹带了别的改动"这种可能性从构造上就不存在。
 
+### 9.1.1 "对照臂读 1.0000×"还不够 —— 先证明对照臂**就是出厂代码**
+
+噪声底回答的是"这把尺子有多细"。它**回答不了**另一个问题：**对照臂跑的是不是真
+的出厂那份代码？** 用"旋钮默认值 = 出厂值"做出来的对照臂，只要新增代码顺手动了
+默认路径一行，对照臂就变成了"出厂代码的一次再推导"，而它照样会读出 1.0000×
+（两边一起偏了）。**这种失效噪声底看不见。**
+
+唯一能判的办法是**逐字节比 ISA**：把提交版编译一遍（**完全不传旋钮关键字**），
+和当前工作区对照臂的 `.s` 比 sha256。
+
+```
+git show HEAD:kernel/grouped_gemm_bf16_kernel_mi455.py > /tmp/base.py
+python benchmarks/hk_isa_gate.py --baseline-kernel /tmp/base.py --json-out ...
+```
+
+**[实测]** HipKittens 四旋钮这一轮：6/6 个 shape 逐字节相同 —— 所以那 189 行新增
+确实是纯 opt-in，对照臂就是出厂 kernel。
+
+这和 `hk_isa_gate.py` 里已有的 `same_asm_as_control`（判**实验臂**有没有真的变，
+防 INERT）是**方向相反的一对检查**：一个查"实验臂变了没有"，一个查"对照臂**没**
+变过"。两个都要。
+
 ---
 
 ## 9.2 夹心口径：单向会吃掉约 0.3% 的热漂移
@@ -339,6 +361,49 @@ shape），而是要求**每个候选在同一份输入上与生产 tile 的 rel
 ---
 
 ## 9.11 工具与环境陷阱（会让你判断反向的那几个）
+
+### ⚠️⚠️ `COMPILE_ONLY=1` **不足以**阻止 launch —— `flyc.compile()` 照样返回可调用对象
+
+**[实测]** 这条推翻了本文档别处（以及 `hk_isa_gate.py` 原始注释、kernel 里
+`_nt_launch` 的那行注释）都写成理所当然的一个前提。
+
+`JitFunction.__call__` **确实**认这个标志：编译、落 dump、打印
+`[flydsl] COMPILE_ONLY=1, compilation succeeded`，然后在 engine init 和 dispatch
+**之前** `return None`。
+
+但 `flyc.compile()` 不是 `__call__`，是 `_compile_impl`。它调用 `jf(*args)` 完成
+编译，**忽略返回的 None**，接着照常 `_build_call_state(...)` 并返回一个
+`CompiledFunction`。**`_compile_impl` 里没有任何 COMPILE_ONLY 分支。**
+
+于是 kernel 的 `_nt_launch` 走的是这条路：
+
+```python
+fn = flyc.compile(_launch_grouped_gemm_bf16_nt, *args)
+if fn is None:      # 注释写的是 "COMPILE_ONLY: nothing was executed"
+    return None     # <- 永远走不到
+_NT_COMPILED[key] = fn
+return fn(*args)    # <- 在 COMPILE_ONLY=1 下真的发射
+```
+
+**那行注释声明的不变量，这个 flydsl build 并不提供。**
+
+**这不是推理出来的，是被抓到的。** `hk_isa_gate.py` 的三道锁里前两道
+（设环境变量、启动时复查）**都没拦住**；拦住的是第三道 —— 每次编译后复查
+`_NT_COMPILED` 是否仍为空。那次漏出去的 launch 之所以无害，只是因为
+`make_operands` 按**真实形状**分配，grid 与算子对得上（见下一条：把两者弄不一致
+才是把卡打挂的那个组合）。
+
+**可操作的结论**：
+
+- **`COMPILE_ONLY=1` 是必要条件，不是充分条件。** 任何"只编译不跑"的脚本都必须
+  自己再兜一层。`hk_isa_gate.py` 的 `enforce_compile_only()` 是参考实现：包一层
+  `flyc.compile`，内部只调 `func(*args)`（走认标志的那条路，dump 照样落盘，
+  **不构造 CallState**），然后返回 None。
+- **补丁打在 harness 里，不打在 kernel 里** —— kernel 是被测对象，必须与出厂
+  逐字节一致。
+- **不要放松"编译后复查缓存为空"这道检查**，它是唯一真正生效的那道。
+
+---
 
 ### ⚠️ 不要为省显存缩小算子而让 grid 仍按真实 M 算
 
