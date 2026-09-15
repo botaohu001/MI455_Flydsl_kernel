@@ -54,6 +54,12 @@
 **"在固定 tile 尺寸下砍掉每 lane 累加器"这一整臂是代数上不存在的，不是试了没
 用**（推导见 [`08-tuning-playbook.md`](08-tuning-playbook.md) §8.6.1）。
 
+> ⚠️ **A 类判负的判据是"大 spill"，不是"spill ≠ 0"。** TN wgrad 上有一个实测
+> 反例：**3 个 spill 的版本比 spill 归零的版本快 5.3%**（1606.1 vs 1520.8 TF/s），
+> 因为让 spill 归零的那个开关同时丢掉了 fragment 的延迟掩盖。上表里的候选都是
+> 几十到几千条的量级，那个才是能一眼判掉的。详见
+> [`09-measurement-methodology.md`](09-measurement-methodology.md) §9.4。
+
 ⚠️ **A 类判负的适用边界**：这些都是**在特定 tile 面积下**的结论。4 波把每 lane
 上限从 512 抬到 1024，很多原本过不去的候选在 4 波下能过门 —— 这正是 §10.7 第一
 条的由来。
